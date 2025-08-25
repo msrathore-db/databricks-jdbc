@@ -10,6 +10,7 @@ import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.api.internal.IDatabricksStatementInternal;
 import com.databricks.jdbc.common.DatabricksClientConfiguratorManager;
 import com.databricks.jdbc.common.DatabricksJdbcConstants;
+import com.databricks.jdbc.common.DatabricksJdbcUrlParams;
 import com.databricks.jdbc.common.safe.DatabricksDriverFeatureFlagsContextFactory;
 import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
 import com.databricks.jdbc.common.util.UserAgentManager;
@@ -414,7 +415,24 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
   @Override
   public boolean isValid(int timeout) throws SQLException {
     ValidationUtil.checkIfNonNegative(timeout, "timeout");
-    return !isClosed();
+    if (isClosed()) {
+      return false;
+    }
+    String enableSqlValidation =
+        session.getConfigValue(
+            DatabricksJdbcUrlParams.ENABLE_SQL_VALIDATION_FOR_ISVALID.getParamName());
+
+    if ("1".equals(enableSqlValidation)) {
+      try (Statement stmt = createStatement()) {
+        stmt.setQueryTimeout(timeout);
+        stmt.execute("SELECT 1");
+        return true;
+      } catch (SQLException e) {
+        LOGGER.debug("SQL validation failed for isValid(): {}", e.getMessage());
+        return false;
+      }
+    }
+    return true;
   }
 
   /**

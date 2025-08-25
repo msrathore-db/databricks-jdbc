@@ -90,7 +90,8 @@ public final class DatabricksJdbcConstants {
           ENABLE_VOLUME_OPERATIONS,
           ALLOWED_STAGING_INGESTION_PATHS,
           DatabricksJdbcUrlParams.AUTH_ACCESS_TOKEN.getParamName(),
-          DatabricksJdbcUrlParams.APPLICATION_NAME.getParamName());
+          DatabricksJdbcUrlParams.APPLICATION_NAME.getParamName(),
+          DatabricksJdbcUrlParams.ENABLE_SQL_VALIDATION_FOR_ISVALID.getParamName());
   public static final Map<String, String> JSON_HTTP_HEADERS =
       Map.of(
           "Accept", "application/json",
