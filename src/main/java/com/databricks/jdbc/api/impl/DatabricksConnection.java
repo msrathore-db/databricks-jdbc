@@ -420,7 +420,7 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
     }
     String enableSqlValidation =
         session.getConfigValue(
-            DatabricksJdbcUrlParams.ENABLE_SQL_VALIDATION_FOR_ISVALID.getParamName());
+            DatabricksJdbcUrlParams.ENABLE_SQL_VALIDATION_FOR_IS_VALID.getParamName());
 
     if ("1".equals(enableSqlValidation)) {
       try (Statement stmt = createStatement()) {

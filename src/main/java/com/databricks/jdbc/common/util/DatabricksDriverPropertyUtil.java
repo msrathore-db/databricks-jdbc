@@ -38,7 +38,7 @@ public class DatabricksDriverPropertyUtil {
           DatabricksJdbcUrlParams.DEFAULT_STRING_COLUMN_LENGTH,
           DatabricksJdbcUrlParams.SOCKET_TIMEOUT,
           DatabricksJdbcUrlParams.ENABLE_TOKEN_CACHE,
-          DatabricksJdbcUrlParams.ENABLE_SQL_VALIDATION_FOR_ISVALID);
+          DatabricksJdbcUrlParams.ENABLE_SQL_VALIDATION_FOR_IS_VALID);
 
   public static List<DriverPropertyInfo> getMissingProperties(String url, Properties info)
       throws DatabricksParsingException {
