@@ -10,7 +10,6 @@ import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.api.internal.IDatabricksStatementInternal;
 import com.databricks.jdbc.common.DatabricksClientConfiguratorManager;
 import com.databricks.jdbc.common.DatabricksJdbcConstants;
-import com.databricks.jdbc.common.DatabricksJdbcUrlParams;
 import com.databricks.jdbc.common.safe.DatabricksDriverFeatureFlagsContextFactory;
 import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
 import com.databricks.jdbc.common.util.UserAgentManager;
@@ -418,9 +417,7 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
     if (isClosed()) {
       return false;
     }
-    String enableSqlValidation =
-        session.getConfigValue(
-            DatabricksJdbcUrlParams.ENABLE_SQL_VALIDATION_FOR_IS_VALID.getParamName());
+    String enableSqlValidation = connectionContext.getEnableSQLValidationForIsValid();
 
     if ("1".equals(enableSqlValidation)) {
       try (Statement stmt = createStatement()) {

@@ -89,6 +89,8 @@ public interface IDatabricksConnectionContext {
 
   String getHttpPath();
 
+  String getEnableSQLValidationForIsValid();
+
   String getProxyHost();
 
   int getProxyPort();
