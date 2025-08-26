@@ -421,7 +421,7 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
       try (Statement stmt = createStatement()) {
         stmt.setQueryTimeout(timeout);
         // This is a lightweight query to check if the connection is valid
-        stmt.execute("SELECT V");
+        stmt.execute("SELECT VERSION()");
         return true;
       } catch (Exception e) {
         LOGGER.debug("Validation failed for isValid(): {}", e.getMessage());
