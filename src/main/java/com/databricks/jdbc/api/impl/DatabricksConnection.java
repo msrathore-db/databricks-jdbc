@@ -422,7 +422,7 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
     if ("1".equals(enableSqlValidation)) {
       try (Statement stmt = createStatement()) {
         stmt.setQueryTimeout(timeout);
-        stmt.execute("SELECT CURRENT_TIMESTAMP");
+        stmt.execute("SELECT VERSION()");
         return true;
       } catch (SQLException e) {
         LOGGER.debug("SQL validation failed for isValid(): {}", e.getMessage());
