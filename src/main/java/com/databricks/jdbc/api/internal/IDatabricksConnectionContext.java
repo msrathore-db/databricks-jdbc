@@ -90,7 +90,7 @@ public interface IDatabricksConnectionContext {
   String getHttpPath();
 
   /** Returns the value of the EnableSQLValidationForIsValid connection property. */
-  String getEnableSQLValidationForIsValid();
+  boolean getEnableSQLValidationForIsValid();
 
   String getProxyHost();
 

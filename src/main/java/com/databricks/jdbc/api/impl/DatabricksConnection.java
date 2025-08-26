@@ -417,15 +417,14 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
     if (isClosed()) {
       return false;
     }
-    String enableSqlValidation = connectionContext.getEnableSQLValidationForIsValid();
-
-    if ("1".equals(enableSqlValidation)) {
+    if (connectionContext.getEnableSQLValidationForIsValid()) {
       try (Statement stmt = createStatement()) {
         stmt.setQueryTimeout(timeout);
-        stmt.execute("SELECT VERSION()");
+        // This is a lightweight query to check if the connection is valid
+        stmt.execute("SELECT V");
         return true;
-      } catch (SQLException e) {
-        LOGGER.debug("SQL validation failed for isValid(): {}", e.getMessage());
+      } catch (Exception e) {
+        LOGGER.debug("Validation failed for isValid(): {}", e.getMessage());
         return false;
       }
     }
