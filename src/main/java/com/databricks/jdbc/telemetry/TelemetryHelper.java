@@ -197,7 +197,8 @@ public class TelemetryHelper {
             .setRowsFetchedPerBlock(connectionContext.getRowsFetchedPerBlock())
             .setAsyncPollIntervalMillis(connectionContext.getAsyncExecPollInterval())
             .setEnableTokenCache(connectionContext.isTokenCacheEnabled())
-            .setHttpPath(connectionContext.getHttpPath());
+            .setHttpPath(connectionContext.getHttpPath())
+            .setEnableSqlValidationForIsValid(connectionContext.getEnableSQLValidationForIsValid());
     if (connectionContext.useJWTAssertion()) {
       connectionParameters
           .setEnableJwtAssertion(true)

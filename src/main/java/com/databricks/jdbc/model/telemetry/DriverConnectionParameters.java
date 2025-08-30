@@ -133,6 +133,9 @@ public class DriverConnectionParameters {
   @JsonProperty("async_poll_interval_millis")
   int asyncPollIntervalMillis;
 
+  @JsonProperty("enable_sql_validation_for_is_valid")
+  boolean enableSqlValidationForIsValid;
+
   public DriverConnectionParameters setHttpPath(String httpPath) {
     this.httpPath = httpPath;
     return this;
@@ -348,6 +351,12 @@ public class DriverConnectionParameters {
     return this;
   }
 
+  public DriverConnectionParameters setEnableSqlValidationForIsValid(
+      boolean enableSqlValidationForIsValid) {
+    this.enableSqlValidationForIsValid = enableSqlValidationForIsValid;
+    return this;
+  }
+
   @Override
   public String toString() {
     return new ToStringer(DriverConnectionParameters.class)
@@ -393,6 +402,7 @@ public class DriverConnectionParameters {
         .add("useSystemTrustStore", useSystemTrustStore)
         .add("rowsFetchedPerBlock", rowsFetchedPerBlock)
         .add("asyncPollIntervalMillis", asyncPollIntervalMillis)
+        .add("enableSqlValidationForIsValid", enableSqlValidationForIsValid)
         .toString();
   }
 }
