@@ -182,14 +182,15 @@ public class MetadataResultSetBuilder {
             if (typeVal == null) { // safety check
               object = null;
             } else {
-              object = getCode(stripTypeName(typeVal));
+              object = getCode(stripBaseTypeName(typeVal));
             }
             break;
           case "SQL_DATETIME_SUB":
             // check if typeVal is a date/time related field
             if (typeVal != null
-                && (typeVal.contains(DATE_TYPE) || typeVal.contains(TIMESTAMP_TYPE))) {
-              object = getCode(stripTypeName(typeVal));
+                && (stripBaseTypeName(typeVal).contains(DATE_TYPE)
+                    || stripBaseTypeName(typeVal).contains(TIMESTAMP_TYPE))) {
+              object = getCode(stripBaseTypeName(typeVal));
             } else {
               object = null;
             }
@@ -216,7 +217,7 @@ public class MetadataResultSetBuilder {
               }
             } catch (SQLException e) {
               if (mappedColumn.getColumnName().equals(DATA_TYPE_COLUMN.getColumnName())) {
-                object = getCode(stripTypeName(typeVal));
+                object = getCode(stripBaseTypeName(typeVal));
               } else if (mappedColumn
                   .getColumnName()
                   .equals(CHAR_OCTET_LENGTH_COLUMN.getColumnName())) {
@@ -250,11 +251,12 @@ public class MetadataResultSetBuilder {
             if (mappedColumn.getColumnName().equals(COLUMN_TYPE_COLUMN.getColumnName())) {
               if (typeVal != null
                   && (typeVal.contains(ARRAY_TYPE)
+                      || typeVal.contains(MAP_TYPE)
                       || typeVal.contains(
-                          MAP_TYPE))) { // for complex data types, do not strip type name
+                          STRUCT_TYPE))) { // for complex data types, do not strip type name
                 object = typeVal;
               } else {
-                object = stripTypeName(typeVal);
+                object = stripBaseTypeName(typeVal);
               }
             }
             // Set COLUMN_SIZE to 255 if it's not present
@@ -337,7 +339,7 @@ public class MetadataResultSetBuilder {
     if (isTextType(typeVal)) {
       return ctx.getDefaultStringColumnLength();
     }
-    String typeName = stripTypeName(typeVal);
+    String typeName = stripBaseTypeName(typeVal);
     switch (typeName) {
       case "DECIMAL":
       case "NUMERIC":
@@ -401,13 +403,13 @@ public class MetadataResultSetBuilder {
     if (typeVal == null || typeVal.isEmpty()) {
       return 0;
     }
-    if (typeVal.contains("ARRAY") || typeVal.contains("MAP")) {
+    if (typeVal.contains("ARRAY") || typeVal.contains("MAP") || typeVal.contains("STRUCT")) {
       return 255;
     }
     if (isTextType(typeVal)) {
       return getColumnSize(typeVal);
     }
-    int sqlType = getCode(stripTypeName(typeVal));
+    int sqlType = getCode(stripBaseTypeName(typeVal));
     return getSizeInBytes(sqlType);
   }
 
@@ -787,30 +789,31 @@ public class MetadataResultSetBuilder {
     List<List<Object>> updatedRows = new ArrayList<>();
     for (List<Object> row : rows) {
       List<Object> updatedRow = new ArrayList<>();
+      String typeVal = null;
+      int col_type_index = columns.indexOf(COLUMN_TYPE_COLUMN); // only relevant for getColumns
+      if (col_type_index != -1) {
+        typeVal = (String) row.get(col_type_index);
+      }
       for (ResultColumn column : columns) {
         if (NULL_COLUMN_COLUMNS.contains(column) || NULL_TABLE_COLUMNS.contains(column)) {
           updatedRow.add(null);
           continue;
         }
         Object object;
-        String typeVal = null;
-        int col_type_index = columns.indexOf(COLUMN_TYPE_COLUMN); // only relevant for getColumns
-        if (col_type_index != -1) {
-          typeVal = (String) row.get(col_type_index);
-        }
         switch (column.getColumnName()) {
           case "SQL_DATA_TYPE":
             if (typeVal == null) { // safety check
               object = null;
             } else {
-              object = getCode(stripTypeName(typeVal));
+              object = getCode(stripBaseTypeName(typeVal));
             }
             break;
           case "SQL_DATETIME_SUB":
             // check if typeVal is a date/time related field
             if (typeVal != null
-                && (typeVal.contains(DATE_TYPE) || typeVal.contains(TIMESTAMP_TYPE))) {
-              object = getCode(stripTypeName(typeVal));
+                && (stripBaseTypeName(typeVal).contains(DATE_TYPE)
+                    || stripBaseTypeName(typeVal).contains(TIMESTAMP_TYPE))) {
+              object = getCode(stripBaseTypeName(typeVal));
             } else {
               object = null;
             }
@@ -848,7 +851,7 @@ public class MetadataResultSetBuilder {
                 }
               }
               if (column.getColumnName().equals(DATA_TYPE_COLUMN.getColumnName())) {
-                object = getCode(stripTypeName(typeVal));
+                object = getCode(stripBaseTypeName(typeVal));
               }
               if (column.getColumnName().equals(CHAR_OCTET_LENGTH_COLUMN.getColumnName())) {
                 object = getCharOctetLength(typeVal);
@@ -867,10 +870,12 @@ public class MetadataResultSetBuilder {
               // Handle TYPE_NAME separately for potential modifications
               if (column.getColumnName().equals(COLUMN_TYPE_COLUMN.getColumnName())) {
                 if (typeVal != null
-                    && (typeVal.contains(ARRAY_TYPE) || typeVal.contains(MAP_TYPE))) {
+                    && (typeVal.contains(ARRAY_TYPE)
+                        || typeVal.contains(MAP_TYPE)
+                        || typeVal.contains(STRUCT_TYPE))) {
                   object = typeVal;
                 } else {
-                  object = stripTypeName(typeVal);
+                  object = stripBaseTypeName(typeVal);
                 }
               }
               // Set COLUMN_SIZE to 255 if it's not present
