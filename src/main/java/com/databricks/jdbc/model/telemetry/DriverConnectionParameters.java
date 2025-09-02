@@ -133,10 +133,6 @@ public class DriverConnectionParameters {
   @JsonProperty("async_poll_interval_millis")
   int asyncPollIntervalMillis;
 
-  // TODO(PECOBLR-772) : first add the property in the proto file
-  // @JsonProperty("enable_sql_validation_for_is_valid")
-  // boolean enableSqlValidationForIsValid;
-
   public DriverConnectionParameters setHttpPath(String httpPath) {
     this.httpPath = httpPath;
     return this;
@@ -352,13 +348,6 @@ public class DriverConnectionParameters {
     return this;
   }
 
-  // TODO(PECOBLR-772) : first add the property in the proto file
-  // public DriverConnectionParameters setEnableSqlValidationForIsValid(
-  //     boolean enableSqlValidationForIsValid) {
-  //   this.enableSqlValidationForIsValid = enableSqlValidationForIsValid;
-  //   return this;
-  // }
-
   @Override
   public String toString() {
     return new ToStringer(DriverConnectionParameters.class)
@@ -404,8 +393,6 @@ public class DriverConnectionParameters {
         .add("useSystemTrustStore", useSystemTrustStore)
         .add("rowsFetchedPerBlock", rowsFetchedPerBlock)
         .add("asyncPollIntervalMillis", asyncPollIntervalMillis)
-        // TODO(PECOBLR-772) : first add the property in the proto file
-        // .add("enableSqlValidationForIsValid", enableSqlValidationForIsValid)
         .toString();
   }
 }

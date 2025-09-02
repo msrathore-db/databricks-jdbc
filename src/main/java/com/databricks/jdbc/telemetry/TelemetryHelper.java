@@ -198,8 +198,6 @@ public class TelemetryHelper {
             .setAsyncPollIntervalMillis(connectionContext.getAsyncExecPollInterval())
             .setEnableTokenCache(connectionContext.isTokenCacheEnabled())
             .setHttpPath(connectionContext.getHttpPath());
-    // TODO(PECOBLR-772) : Add this property in the proto file
-    // .setEnableSqlValidationForIsValid(connectionContext.getEnableSQLValidationForIsValid());
     if (connectionContext.useJWTAssertion()) {
       connectionParameters
           .setEnableJwtAssertion(true)
