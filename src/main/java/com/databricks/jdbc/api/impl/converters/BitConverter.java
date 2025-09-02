@@ -17,7 +17,17 @@ public class BitConverter implements ObjectConverter {
       return Boolean.parseBoolean((String) object);
     }
     throw new DatabricksSQLException(
-        "Unsupported type for conversion to BIT: " + object.getClass(),
+        "Unsupported type for conversion to BIT: " + (object == null ? "null" : object.getClass()),
         DatabricksDriverErrorCode.UNSUPPORTED_OPERATION);
+  }
+
+  @Override
+  public String toString(Object object) throws DatabricksSQLException {
+    if (object instanceof Boolean) {
+      return object.toString();
+    }
+    // For other types, fall back to the default behavior
+    throw new DatabricksSQLException(
+        "Unsupported String conversion operation", DatabricksDriverErrorCode.UNSUPPORTED_OPERATION);
   }
 }
