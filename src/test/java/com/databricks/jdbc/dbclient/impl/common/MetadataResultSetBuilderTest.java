@@ -467,4 +467,120 @@ public class MetadataResultSetBuilderTest {
     }
     assertEquals(2, rowCount);
   }
+
+  @Test
+  void testComplexTypesReturnVarcharWhenSupportDisabled() throws SQLException {
+    when(connectionContext.isComplexDatatypeSupportEnabled()).thenReturn(false);
+    List<List<Object>> rows =
+        Arrays.asList(
+            Arrays.asList(
+                "cat",
+                "sch",
+                "tab",
+                "array_col",
+                2003,
+                "ARRAY<STRING>",
+                0,
+                0,
+                0,
+                0,
+                1,
+                "",
+                "",
+                2003,
+                0,
+                0,
+                1,
+                "YES",
+                "",
+                "",
+                "",
+                0),
+            Arrays.asList(
+                "cat",
+                "sch",
+                "tab",
+                "map_col",
+                2002,
+                "MAP<STRING,INT>",
+                0,
+                0,
+                0,
+                0,
+                1,
+                "",
+                "",
+                2002,
+                0,
+                0,
+                2,
+                "YES",
+                "",
+                "",
+                "",
+                0));
+    DatabricksResultSet resultSet = metadataResultSetBuilder.getColumnsResult(rows);
+    resultSet.next();
+    assertEquals(12, resultSet.getInt("DATA_TYPE")); // ARRAY should be VARCHAR
+    resultSet.next();
+    assertEquals(12, resultSet.getInt("DATA_TYPE")); // MAP should be VARCHAR
+  }
+
+  @Test
+  void testComplexTypesReturnActualCodesWhenSupportEnabled() throws SQLException {
+    when(connectionContext.isComplexDatatypeSupportEnabled()).thenReturn(true);
+    List<List<Object>> rows =
+        Arrays.asList(
+            Arrays.asList(
+                "cat",
+                "sch",
+                "tab",
+                "array_col",
+                2003,
+                "ARRAY<STRING>",
+                0,
+                0,
+                0,
+                0,
+                1,
+                "",
+                "",
+                2003,
+                0,
+                0,
+                1,
+                "YES",
+                "",
+                "",
+                "",
+                0),
+            Arrays.asList(
+                "cat",
+                "sch",
+                "tab",
+                "map_col",
+                2002,
+                "MAP<STRING,INT>",
+                0,
+                0,
+                0,
+                0,
+                1,
+                "",
+                "",
+                2002,
+                0,
+                0,
+                2,
+                "YES",
+                "",
+                "",
+                "",
+                0));
+    DatabricksResultSet resultSet = metadataResultSetBuilder.getColumnsResult(rows);
+    resultSet.next();
+    assertEquals(2003, resultSet.getInt("DATA_TYPE")); // ARRAY should be 2003
+    resultSet.next();
+    assertEquals(2002, resultSet.getInt("DATA_TYPE")); // MAP should be 2002
+  }
 }

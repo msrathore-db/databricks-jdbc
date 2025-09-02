@@ -182,7 +182,13 @@ public class MetadataResultSetBuilder {
             if (typeVal == null) { // safety check
               object = null;
             } else {
-              object = getCode(stripBaseTypeName(typeVal));
+              // Check if complex datatype support is disabled and this is a complex type
+              if (!ctx.isComplexDatatypeSupportEnabled() && isComplexType(typeVal)) {
+                object =
+                    12; // Return VARCHAR (Types.VARCHAR) for complex types when support is disabled
+              } else {
+                object = getCode(stripBaseTypeName(typeVal));
+              }
             }
             break;
           case "SQL_DATETIME_SUB":
@@ -478,6 +484,23 @@ public class MetadataResultSetBuilder {
     }
 
     return typeName;
+  }
+
+  /**
+   * Checks if the given type string represents a complex type (ARRAY, MAP, or STRUCT).
+   *
+   * @param typeVal The type string to check
+   * @return true if the type is a complex type, false otherwise
+   */
+  private boolean isComplexType(String typeVal) {
+    if (typeVal == null) {
+      return false;
+    }
+    String baseType = stripBaseTypeName(typeVal);
+    return baseType.contains(ARRAY_TYPE)
+        || baseType.contains(MAP_TYPE)
+        || baseType.contains(STRUCT_TYPE)
+        || baseType.contains(VARIANT_TYPE);
   }
 
   int getCode(String s) {
@@ -805,7 +828,13 @@ public class MetadataResultSetBuilder {
             if (typeVal == null) { // safety check
               object = null;
             } else {
-              object = getCode(stripBaseTypeName(typeVal));
+              // Check if complex datatype support is disabled and this is a complex type
+              if (!ctx.isComplexDatatypeSupportEnabled() && isComplexType(typeVal)) {
+                object =
+                    12; // Return VARCHAR (Types.VARCHAR) for complex types when support is disabled
+              } else {
+                object = getCode(stripBaseTypeName(typeVal));
+              }
             }
             break;
           case "SQL_DATETIME_SUB":
@@ -851,7 +880,13 @@ public class MetadataResultSetBuilder {
                 }
               }
               if (column.getColumnName().equals(DATA_TYPE_COLUMN.getColumnName())) {
-                object = getCode(stripBaseTypeName(typeVal));
+                // Check if complex datatype support is disabled and this is a complex type
+                if (!ctx.isComplexDatatypeSupportEnabled() && isComplexType(typeVal)) {
+                  object = 12; // Return VARCHAR (Types.VARCHAR) for complex types when support is
+                  // disabled
+                } else {
+                  object = getCode(stripBaseTypeName(typeVal));
+                }
               }
               if (column.getColumnName().equals(CHAR_OCTET_LENGTH_COLUMN.getColumnName())) {
                 object = getCharOctetLength(typeVal);
