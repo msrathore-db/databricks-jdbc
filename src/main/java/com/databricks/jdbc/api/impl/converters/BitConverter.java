@@ -26,8 +26,9 @@ public class BitConverter implements ObjectConverter {
     if (object instanceof Boolean) {
       return object.toString();
     }
-    // For other types, fall back to the default behavior
     throw new DatabricksSQLException(
-        "Unsupported String conversion operation", DatabricksDriverErrorCode.UNSUPPORTED_OPERATION);
+        "Unsupported type for conversion to String: "
+            + (object == null ? "null" : object.getClass()),
+        DatabricksDriverErrorCode.UNSUPPORTED_OPERATION);
   }
 }

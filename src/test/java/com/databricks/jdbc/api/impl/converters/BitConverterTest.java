@@ -28,12 +28,20 @@ public class BitConverterTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"not a boolean", "123", "test"})
-  public void testToStringWithUnsupportedStringTypes(String input) {
+  @CsvSource({
+    "null, null",
+    "Object, Object",
+    "int[], class [I",
+    "String[], class [Ljava.lang.String;"
+  })
+  public void testToStringWithUnsupportedTypes(String typeDescription, String expectedInMessage) {
+    Object input = getTestObject(typeDescription);
+
     DatabricksSQLException exception =
         assertThrows(DatabricksSQLException.class, () -> bitConverter.toString(input));
 
-    assertTrue(exception.getMessage().contains("Unsupported String conversion operation"));
+    assertTrue(exception.getMessage().contains("Unsupported type for conversion to String"));
+    assertTrue(exception.getMessage().contains(expectedInMessage));
     assertEquals("UNSUPPORTED_OPERATION", exception.getSQLState());
   }
 
