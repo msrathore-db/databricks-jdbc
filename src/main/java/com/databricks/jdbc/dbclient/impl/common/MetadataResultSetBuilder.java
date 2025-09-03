@@ -186,8 +186,7 @@ public class MetadataResultSetBuilder {
             } else {
               // Check if complex datatype support is disabled and this is a complex type
               if (!ctx.isComplexDatatypeSupportEnabled() && isComplexType(typeVal)) {
-                object =
-                    12; // Return VARCHAR (Types.VARCHAR) for complex types when support is disabled
+                object = Types.VARCHAR;
               } else {
                 object = getCode(stripBaseTypeName(typeVal));
               }
@@ -225,7 +224,11 @@ public class MetadataResultSetBuilder {
               }
             } catch (SQLException e) {
               if (mappedColumn.getColumnName().equals(DATA_TYPE_COLUMN.getColumnName())) {
-                object = getCode(stripBaseTypeName(typeVal));
+                if (!ctx.isComplexDatatypeSupportEnabled() && isComplexType(typeVal)) {
+                  object = Types.VARCHAR;
+                } else {
+                  object = getCode(stripBaseTypeName(typeVal));
+                }
               } else if (mappedColumn
                   .getColumnName()
                   .equals(CHAR_OCTET_LENGTH_COLUMN.getColumnName())) {
@@ -501,8 +504,7 @@ public class MetadataResultSetBuilder {
     String baseType = stripBaseTypeName(typeVal);
     return baseType.contains(ARRAY_TYPE)
         || baseType.contains(MAP_TYPE)
-        || baseType.contains(STRUCT_TYPE)
-        || baseType.contains(VARIANT_TYPE);
+        || baseType.contains(STRUCT_TYPE);
   }
 
   int getCode(String s) {
@@ -852,8 +854,7 @@ public class MetadataResultSetBuilder {
             } else {
               // Check if complex datatype support is disabled and this is a complex type
               if (!ctx.isComplexDatatypeSupportEnabled() && isComplexType(typeVal)) {
-                object =
-                    12; // Return VARCHAR (Types.VARCHAR) for complex types when support is disabled
+                object = Types.VARCHAR;
               } else {
                 object = getCode(stripBaseTypeName(typeVal));
               }
@@ -904,8 +905,7 @@ public class MetadataResultSetBuilder {
               if (column.getColumnName().equals(DATA_TYPE_COLUMN.getColumnName())) {
                 // Check if complex datatype support is disabled and this is a complex type
                 if (!ctx.isComplexDatatypeSupportEnabled() && isComplexType(typeVal)) {
-                  object = 12; // Return VARCHAR (Types.VARCHAR) for complex types when support is
-                  // disabled
+                  object = Types.VARCHAR;
                 } else {
                   object = getCode(stripBaseTypeName(typeVal));
                 }

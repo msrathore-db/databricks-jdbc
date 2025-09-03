@@ -14,7 +14,6 @@ public class TypeValConstants {
   static final String MAP_TYPE = "MAP";
   static final String STRUCT_TYPE = "STRUCT";
   static final String UNIONTYPE_TYPE = "UNIONTYPE";
-  static final String VARIANT_TYPE = "VARIANT";
   static final String BYTE_TYPE = "BYTE";
   static final String SHORT_TYPE = "SHORT";
   static final String LONG_TYPE = "LONG";

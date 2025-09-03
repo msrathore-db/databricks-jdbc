@@ -471,116 +471,42 @@ public class MetadataResultSetBuilderTest {
   @Test
   void testComplexTypesReturnVarcharWhenSupportDisabled() throws SQLException {
     when(connectionContext.isComplexDatatypeSupportEnabled()).thenReturn(false);
+
+    List<ResultColumn> columns =
+        Arrays.asList(DATA_TYPE_COLUMN, COLUMN_TYPE_COLUMN, SQL_DATA_TYPE_COLUMN);
     List<List<Object>> rows =
         Arrays.asList(
-            Arrays.asList(
-                "cat",
-                "sch",
-                "tab",
-                "array_col",
-                2003,
-                "ARRAY<STRING>",
-                0,
-                0,
-                0,
-                0,
-                1,
-                "",
-                "",
-                2003,
-                0,
-                0,
-                1,
-                "YES",
-                "",
-                "",
-                "",
-                0),
-            Arrays.asList(
-                "cat",
-                "sch",
-                "tab",
-                "map_col",
-                2002,
-                "MAP<STRING,INT>",
-                0,
-                0,
-                0,
-                0,
-                1,
-                "",
-                "",
-                2002,
-                0,
-                0,
-                2,
-                "YES",
-                "",
-                "",
-                "",
-                0));
-    DatabricksResultSet resultSet = metadataResultSetBuilder.getColumnsResult(rows);
-    resultSet.next();
-    assertEquals(12, resultSet.getInt("DATA_TYPE")); // ARRAY should be VARCHAR
-    resultSet.next();
-    assertEquals(12, resultSet.getInt("DATA_TYPE")); // MAP should be VARCHAR
+            Arrays.asList(2003, "ARRAY<DATE>", 2003), Arrays.asList(2002, "MAP<STRING,INT>", 2002));
+
+    List<List<Object>> updatedRows = metadataResultSetBuilder.getThriftRows(rows, columns);
+
+    List<Object> arrayRow = updatedRows.get(0);
+    assertEquals(12, arrayRow.get(0)); // DATA_TYPE should be 12 (VARCHAR)
+    assertEquals(12, arrayRow.get(2)); // SQL_DATA_TYPE should be 12 (VARCHAR)
+
+    List<Object> mapRow = updatedRows.get(1);
+    assertEquals(12, mapRow.get(0)); // DATA_TYPE should be 12 (VARCHAR)
+    assertEquals(12, mapRow.get(2)); // SQL_DATA_TYPE should be 12 (VARCHAR)
   }
 
   @Test
   void testComplexTypesReturnActualCodesWhenSupportEnabled() throws SQLException {
     when(connectionContext.isComplexDatatypeSupportEnabled()).thenReturn(true);
+
+    List<ResultColumn> columns =
+        Arrays.asList(DATA_TYPE_COLUMN, COLUMN_TYPE_COLUMN, SQL_DATA_TYPE_COLUMN);
     List<List<Object>> rows =
         Arrays.asList(
-            Arrays.asList(
-                "cat",
-                "sch",
-                "tab",
-                "array_col",
-                2003,
-                "ARRAY<STRING>",
-                0,
-                0,
-                0,
-                0,
-                1,
-                "",
-                "",
-                2003,
-                0,
-                0,
-                1,
-                "YES",
-                "",
-                "",
-                "",
-                0),
-            Arrays.asList(
-                "cat",
-                "sch",
-                "tab",
-                "map_col",
-                2002,
-                "MAP<STRING,INT>",
-                0,
-                0,
-                0,
-                0,
-                1,
-                "",
-                "",
-                2002,
-                0,
-                0,
-                2,
-                "YES",
-                "",
-                "",
-                "",
-                0));
-    DatabricksResultSet resultSet = metadataResultSetBuilder.getColumnsResult(rows);
-    resultSet.next();
-    assertEquals(2003, resultSet.getInt("DATA_TYPE")); // ARRAY should be 2003
-    resultSet.next();
-    assertEquals(2002, resultSet.getInt("DATA_TYPE")); // MAP should be 2002
+            Arrays.asList(2003, "ARRAY<DATE>", 2003), Arrays.asList(2002, "MAP<STRING,INT>", 2002));
+
+    List<List<Object>> updatedRows = metadataResultSetBuilder.getThriftRows(rows, columns);
+
+    List<Object> arrayRow = updatedRows.get(0);
+    assertEquals(2003, arrayRow.get(0)); // DATA_TYPE should be 2003 (ARRAY)
+    assertEquals(2003, arrayRow.get(2)); // SQL_DATA_TYPE should be 2003 (ARRAY)
+
+    List<Object> mapRow = updatedRows.get(1);
+    assertEquals(2002, mapRow.get(0)); // DATA_TYPE should be 2002 (MAP)
+    assertEquals(2002, mapRow.get(2)); // SQL_DATA_TYPE should be 2002 (MAP)
   }
 }
