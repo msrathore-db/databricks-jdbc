@@ -212,8 +212,16 @@ public class MetadataResultSetBuilder {
                 } else {
                   object = "NO";
                 }
-              } else if (mappedColumn.getColumnName().equals(DECIMAL_DIGITS_COLUMN.getColumnName())
-                  || mappedColumn.getColumnName().equals(NUM_PREC_RADIX_COLUMN.getColumnName())) {
+              } else if (mappedColumn
+                  .getColumnName()
+                  .equals(DECIMAL_DIGITS_COLUMN.getColumnName())) {
+                if (object == null) {
+                  object = 0;
+                }
+                object = getScale(stripBaseTypeName(typeVal), (int) object);
+              } else if (mappedColumn
+                  .getColumnName()
+                  .equals(NUM_PREC_RADIX_COLUMN.getColumnName())) {
                 if (object == null) {
                   object = 0;
                 }

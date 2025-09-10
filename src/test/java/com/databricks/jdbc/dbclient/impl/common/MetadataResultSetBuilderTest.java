@@ -531,4 +531,27 @@ public class MetadataResultSetBuilderTest {
     assertEquals(1111, variantRow.get(0));
     assertEquals(1111, variantRow.get(2));
   }
+
+  @Test
+  void testDecimalDigitsColumnInGetThriftRows() {
+    List<ResultColumn> columns = Arrays.asList(COLUMN_TYPE_COLUMN, DECIMAL_DIGITS_COLUMN);
+
+    List<List<Object>> rows =
+        Arrays.asList(
+            Arrays.asList("DECIMAL(10,2)", 2),
+            Arrays.asList("TIMESTAMP", 6),
+            Arrays.asList("INT", 0),
+            Arrays.asList("VARCHAR(100)", 0),
+            Arrays.asList("DECIMAL(15,5)", 5),
+            Arrays.asList("TIMESTAMP_NTZ", 6));
+
+    List<List<Object>> updatedRows = metadataResultSetBuilder.getThriftRows(rows, columns);
+
+    assertEquals(2, updatedRows.get(0).get(1), "DECIMAL(10,2) should have scale 2");
+    assertEquals(9, updatedRows.get(1).get(1), "TIMESTAMP should have scale 9");
+    assertEquals(0, updatedRows.get(2).get(1), "INT should have scale 0");
+    assertEquals(0, updatedRows.get(3).get(1), "VARCHAR should have scale 0");
+    assertEquals(5, updatedRows.get(4).get(1), "DECIMAL(15,5) should have scale 5");
+    assertEquals(9, updatedRows.get(5).get(1), "TIMESTAMP_NTZ should have scale 9");
+  }
 }
