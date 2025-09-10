@@ -424,6 +424,19 @@ public class MetadataResultSetBuilder {
     return getSizeInBytes(sqlType);
   }
 
+  int getScale(String baseTypeVal, int scale) {
+    if (baseTypeVal == null || baseTypeVal.isEmpty()) {
+      return 0;
+    }
+    if (baseTypeVal.contains(DECIMAL_TYPE) || baseTypeVal.contains(NUMERIC_TYPE)) {
+      return scale;
+    }
+    if (baseTypeVal.contains(TIMESTAMP_TYPE) || baseTypeVal.contains(TIMESTAMP_NTZ_TYPE)) {
+      return 9;
+    }
+    return 0;
+  }
+
   /**
    * Extracts the character octet length from a given SQL type definition. For example, for input
    * "VARCHAR(100)", it returns 100. For inputs without a specified length or invalid inputs, it
@@ -891,8 +904,13 @@ public class MetadataResultSetBuilder {
                   object = "YES";
                 }
               }
-              if (column.getColumnName().equals(DECIMAL_DIGITS_COLUMN.getColumnName())
-                  || column.getColumnName().equals(NUM_PREC_RADIX_COLUMN.getColumnName())) {
+              if (column.getColumnName().equals(DECIMAL_DIGITS_COLUMN.getColumnName())) {
+                if (object == null) {
+                  object = 0;
+                }
+                object = getScale(stripBaseTypeName(typeVal), (int) object);
+              }
+              if (column.getColumnName().equals(NUM_PREC_RADIX_COLUMN.getColumnName())) {
                 if (object == null) {
                   object = 0;
                 }
