@@ -543,7 +543,8 @@ public class MetadataResultSetBuilderTest {
             Arrays.asList("INT", 0),
             Arrays.asList("VARCHAR(100)", 0),
             Arrays.asList("DECIMAL(15,5)", 5),
-            Arrays.asList("TIMESTAMP_NTZ", 6));
+            Arrays.asList("TIMESTAMP_NTZ", 6),
+            Arrays.asList("DECIMAL", 0));
 
     List<List<Object>> updatedRows = metadataResultSetBuilder.getThriftRows(rows, columns);
 
@@ -553,5 +554,43 @@ public class MetadataResultSetBuilderTest {
     assertEquals(0, updatedRows.get(3).get(1), "VARCHAR should have scale 0");
     assertEquals(5, updatedRows.get(4).get(1), "DECIMAL(15,5) should have scale 5");
     assertEquals(9, updatedRows.get(5).get(1), "TIMESTAMP_NTZ should have scale 9");
+    assertEquals(0, updatedRows.get(6).get(1), "DECIMAL should have scale 0");
+  }
+
+  private static Stream<Arguments> provideDecimalDigitsArguments() {
+    return Stream.of(
+        Arguments.of("DECIMAL(10,2)", 2, 2, "DECIMAL(10,2) should have scale 2"),
+        Arguments.of("TIMESTAMP", 6, 9, "TIMESTAMP should have scale 9"),
+        Arguments.of("INT", 0, 0, "INT should have scale 0"),
+        Arguments.of("VARCHAR(100)", 0, 0, "VARCHAR should have scale 0"),
+        Arguments.of("DECIMAL(15,5)", 5, 5, "DECIMAL(15,5) should have scale 5"),
+        Arguments.of("TIMESTAMP_NTZ", 6, 9, "TIMESTAMP_NTZ should have scale 9"),
+        Arguments.of("DECIMAL", 0, 0, "DECIMAL should have scale 0"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideDecimalDigitsArguments")
+  void testDecimalDigitsColumnInGetRows(
+      String typeName, int inputScale, int expectedScale, String message) throws SQLException {
+    DatabricksResultSet resultSet = mock(DatabricksResultSet.class);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+
+    for (ResultColumn resultColumn : COLUMN_COLUMNS) {
+      if (resultColumn.getResultSetColumnName().equals("SQLDataType")) {
+        // Special handling begins from SQLDataType columns onward; getObject is no longer invoked.
+        break;
+      }
+      when(resultSet.getObject(resultColumn.getResultSetColumnName())).thenReturn(null);
+    }
+    when(resultSet.getObject(IS_NULLABLE_COLUMN.getResultSetColumnName())).thenReturn("true");
+    when(resultSet.getString(COLUMN_TYPE_COLUMN.getResultSetColumnName())).thenReturn(typeName);
+    when(resultSet.getObject(DECIMAL_DIGITS_COLUMN.getResultSetColumnName()))
+        .thenReturn(inputScale);
+
+    List<List<Object>> rows =
+        metadataResultSetBuilder.getRows(
+            resultSet, COLUMN_COLUMNS, new DefaultDatabricksResultSetAdapter());
+
+    assertEquals(expectedScale, rows.get(0).get(8), message);
   }
 }

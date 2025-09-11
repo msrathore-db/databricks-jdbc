@@ -215,10 +215,7 @@ public class MetadataResultSetBuilder {
               } else if (mappedColumn
                   .getColumnName()
                   .equals(DECIMAL_DIGITS_COLUMN.getColumnName())) {
-                if (object == null) {
-                  object = 0;
-                }
-                object = getScale(stripBaseTypeName(typeVal), (int) object);
+                object = getUpdatedDecimalDigits(stripBaseTypeName(typeVal), object);
               } else if (mappedColumn
                   .getColumnName()
                   .equals(NUM_PREC_RADIX_COLUMN.getColumnName())) {
@@ -432,7 +429,11 @@ public class MetadataResultSetBuilder {
     return getSizeInBytes(sqlType);
   }
 
-  int getScale(String baseTypeVal, int scale) {
+  int getUpdatedDecimalDigits(String baseTypeVal, Object scaleObject) {
+    if (scaleObject == null) {
+      return 0;
+    }
+    int scale = (int) scaleObject;
     if (baseTypeVal == null || baseTypeVal.isEmpty()) {
       return 0;
     }
@@ -913,10 +914,7 @@ public class MetadataResultSetBuilder {
                 }
               }
               if (column.getColumnName().equals(DECIMAL_DIGITS_COLUMN.getColumnName())) {
-                if (object == null) {
-                  object = 0;
-                }
-                object = getScale(stripBaseTypeName(typeVal), (int) object);
+                object = getUpdatedDecimalDigits(stripBaseTypeName(typeVal), object);
               }
               if (column.getColumnName().equals(NUM_PREC_RADIX_COLUMN.getColumnName())) {
                 if (object == null) {
