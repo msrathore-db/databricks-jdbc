@@ -431,30 +431,17 @@ public class MetadataResultSetBuilder {
   }
 
   /**
-   * Overrides the value of DECIMAL_DIGITS and returns a non-zero value only for specific data
-   * types. This function processes the scale value based on the column type, ensuring proper
-   * decimal digits are returned for DECIMAL, NUMERIC, TIMESTAMP, and TIMESTAMP_NTZ data types.
+   * Overrides DECIMAL_DIGITS value for specific data types. Returns non-zero only for DECIMAL,
+   * NUMERIC, TIMESTAMP, and TIMESTAMP_NTZ.
    *
-   * @param baseTypeVal the base type name of the column (e.g., "DECIMAL", "TIMESTAMP", "VARCHAR")
-   * @param scaleObject the original scale value from the result set (can be null)
-   * @return the updated decimal digits value:
-   *     <ul>
-   *       <li>0 if scaleObject is null or baseTypeVal is null/empty
-   *       <li>the original scale value for DECIMAL and NUMERIC types
-   *       <li>9 for TIMESTAMP and TIMESTAMP_NTZ types (overrides original scale)
-   *       <li>0 for all other data types
-   *     </ul>
-   *
+   * @param baseTypeVal the column type name
+   * @param scaleObject the original scale value (can be null)
+   * @return scale value for DECIMAL/NUMERIC, 9 for TIMESTAMP types, 0 otherwise
    * @example
    *     <pre>
-   * // DECIMAL(10,2) will have baseTypeVal of "DECIMAL" and scale of 2, returns 2
    * getUpdatedDecimalDigits("DECIMAL", 2) → 2
-   *
-   * // TIMESTAMP with scaleObject = 6 but we override and return 9
    * getUpdatedDecimalDigits("TIMESTAMP", 6) → 9
-   *
-   * // FLOAT returns 0 instead of the value
-   * getUpdatedDecimalDigits("FLOAT", 0) → 0
+   * getUpdatedDecimalDigits("FLOAT", 7) → 0
    * </pre>
    */
   int getUpdatedDecimalDigits(String baseTypeVal, Object scaleObject) {
