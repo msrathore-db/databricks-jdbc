@@ -2,6 +2,7 @@ package com.databricks.jdbc.dbclient.impl.common;
 
 import static com.databricks.jdbc.common.MetadataResultConstants.*;
 import static com.databricks.jdbc.common.util.DatabricksTypeUtil.INTERVAL;
+import static com.databricks.jdbc.common.util.WildcardUtil.isNullOrEmpty;
 import static com.databricks.jdbc.dbclient.impl.common.CommandConstants.*;
 import static com.databricks.jdbc.dbclient.impl.common.TypeValConstants.*;
 
@@ -429,12 +430,39 @@ public class MetadataResultSetBuilder {
     return getSizeInBytes(sqlType);
   }
 
+  /**
+   * Overrides the value of DECIMAL_DIGITS and returns a non-zero value only for specific data
+   * types. This function processes the scale value based on the column type, ensuring proper
+   * decimal digits are returned for DECIMAL, NUMERIC, TIMESTAMP, and TIMESTAMP_NTZ data types.
+   *
+   * @param baseTypeVal the base type name of the column (e.g., "DECIMAL", "TIMESTAMP", "VARCHAR")
+   * @param scaleObject the original scale value from the result set (can be null)
+   * @return the updated decimal digits value:
+   *     <ul>
+   *       <li>0 if scaleObject is null or baseTypeVal is null/empty
+   *       <li>the original scale value for DECIMAL and NUMERIC types
+   *       <li>9 for TIMESTAMP and TIMESTAMP_NTZ types (overrides original scale)
+   *       <li>0 for all other data types
+   *     </ul>
+   *
+   * @example
+   *     <pre>
+   * // DECIMAL(10,2) will have baseTypeVal of "DECIMAL" and scale of 2, returns 2
+   * getUpdatedDecimalDigits("DECIMAL", 2) → 2
+   *
+   * // TIMESTAMP with scaleObject = 6 but we override and return 9
+   * getUpdatedDecimalDigits("TIMESTAMP", 6) → 9
+   *
+   * // FLOAT returns 0 instead of the value
+   * getUpdatedDecimalDigits("FLOAT", 0) → 0
+   * </pre>
+   */
   int getUpdatedDecimalDigits(String baseTypeVal, Object scaleObject) {
     if (scaleObject == null) {
       return 0;
     }
     int scale = (int) scaleObject;
-    if (baseTypeVal == null || baseTypeVal.isEmpty()) {
+    if (isNullOrEmpty(baseTypeVal)) {
       return 0;
     }
     if (baseTypeVal.contains(DECIMAL_TYPE) || baseTypeVal.contains(NUMERIC_TYPE)) {
