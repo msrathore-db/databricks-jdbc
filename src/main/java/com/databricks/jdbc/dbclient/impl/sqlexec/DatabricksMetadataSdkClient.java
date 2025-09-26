@@ -42,6 +42,39 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
     this.metadataResultSetBuilder = new MetadataResultSetBuilder(sdkClient.getConnectionContext());
   }
 
+  private String autoFillCatalog(String catalog, IDatabricksSession session) {
+    if (sdkClient.getConnectionContext() != null
+        && !sdkClient.getConnectionContext().getEnableMultipleCatalogSupport()
+        && (catalog == null || catalog.isEmpty() || catalog.equals("%") || catalog.equals("*"))) {
+      String currentCatalog = getCurrentCatalog(session);
+      return (currentCatalog != null && !currentCatalog.isEmpty()) ? currentCatalog : "";
+    }
+    return catalog;
+  }
+
+  private String getCurrentCatalog(IDatabricksSession session) {
+    try {
+      DatabricksResultSet resultSet =
+          sdkClient.executeStatement(
+              "SELECT current_catalog()",
+              session.getComputeResource(),
+              new HashMap<>(),
+              StatementType.METADATA,
+              session,
+              null);
+
+      if (resultSet.next()) {
+        String currentCatalog = resultSet.getString(1);
+        return currentCatalog;
+      }
+    } catch (Exception e) {
+      LOGGER.warn(
+          "Failed to get current catalog, falling back to session catalog: {}", e.getMessage());
+      return session.getCatalog();
+    }
+    return session.getCatalog();
+  }
+
   @Override
   public DatabricksResultSet listTypeInfo(IDatabricksSession session) {
     LOGGER.debug("public ResultSet getTypeInfo()");
@@ -50,6 +83,20 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
 
   @Override
   public DatabricksResultSet listCatalogs(IDatabricksSession session) throws SQLException {
+    // If multiple catalog support is disabled, return only the current catalog
+    if (sdkClient.getConnectionContext() != null
+        && !sdkClient.getConnectionContext().getEnableMultipleCatalogSupport()) {
+      String currentCatalog = getCurrentCatalog(session);
+      if (currentCatalog == null || currentCatalog.isEmpty()) {
+        currentCatalog = "";
+      }
+      List<List<Object>> singleCatalogRows = new ArrayList<>();
+      List<Object> catalogRow = new ArrayList<>();
+      catalogRow.add(currentCatalog);
+      singleCatalogRows.add(catalogRow);
+      return metadataResultSetBuilder.getCatalogsResult(singleCatalogRows);
+    }
+
     CommandBuilder commandBuilder = new CommandBuilder(session);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_CATALOGS);
     LOGGER.debug("SQL command to fetch catalogs: {}", SQL);
@@ -59,6 +106,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   @Override
   public DatabricksResultSet listSchemas(
       IDatabricksSession session, String catalog, String schemaNamePattern) throws SQLException {
+    catalog = autoFillCatalog(catalog, session);
     CommandBuilder commandBuilder =
         new CommandBuilder(catalog, session).setSchemaPattern(schemaNamePattern);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_SCHEMAS);
@@ -87,6 +135,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
       String tableNamePattern,
       String[] tableTypes)
       throws SQLException {
+    catalog = autoFillCatalog(catalog, session);
     String[] validatedTableTypes =
         Optional.ofNullable(tableTypes)
             .filter(types -> types.length > 0)
@@ -132,6 +181,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
       String tableNamePattern,
       String columnNamePattern)
       throws SQLException {
+    catalog = autoFillCatalog(catalog, session);
     CommandBuilder commandBuilder =
         new CommandBuilder(catalog, session)
             .setSchemaPattern(schemaNamePattern)
@@ -149,6 +199,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
       String schemaNamePattern,
       String functionNamePattern)
       throws SQLException {
+    catalog = autoFillCatalog(catalog, session);
     CommandBuilder commandBuilder =
         new CommandBuilder(catalog, session)
             .setSchemaPattern(schemaNamePattern)
@@ -161,6 +212,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   @Override
   public DatabricksResultSet listPrimaryKeys(
       IDatabricksSession session, String catalog, String schema, String table) throws SQLException {
+    catalog = autoFillCatalog(catalog, session);
     CommandBuilder commandBuilder =
         new CommandBuilder(catalog, session).setSchema(schema).setTable(table);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_PRIMARY_KEYS);
@@ -172,6 +224,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   public DatabricksResultSet listImportedKeys(
       IDatabricksSession session, String catalog, String schema, String table) throws SQLException {
     LOGGER.debug("public ResultSet listImportedKeys() using SDK");
+    catalog = autoFillCatalog(catalog, session);
     CommandBuilder commandBuilder =
         new CommandBuilder(catalog, session).setSchema(schema).setTable(table);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_FOREIGN_KEYS);
@@ -197,6 +250,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   public DatabricksResultSet listExportedKeys(
       IDatabricksSession session, String catalog, String schema, String table) {
     LOGGER.debug("public ResultSet listExportedKeys() using SDK");
+    catalog = autoFillCatalog(catalog, session);
     // Exported keys not tracked in DBSQL. Returning empty result set
     return metadataResultSetBuilder.getResultSetWithGivenRowsAndColumns(
         MetadataResultConstants.EXPORTED_KEYS_COLUMNS,

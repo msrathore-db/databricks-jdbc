@@ -160,8 +160,9 @@ public enum DatabricksJdbcUrlParams {
   ENABLE_SQL_VALIDATION_FOR_IS_VALID(
       "EnableSQLValidationForIsValid",
       "Enable SQL query execution for connection validation in isValid() method",
-      "0");
-
+      "0"),
+  ENABLE_MULTIPLE_CATALOG_SUPPORT(
+      "enableMultipleCatalogSupport", "Enable multiple catalog support", "1");
   private final String paramName;
   private final String defaultValue;
   private final String description;
