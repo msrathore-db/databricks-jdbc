@@ -42,9 +42,13 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
     this.metadataResultSetBuilder = new MetadataResultSetBuilder(sdkClient.getConnectionContext());
   }
 
+  private boolean isMultipleCatalogSupportDisabled() {
+    return sdkClient.getConnectionContext() != null
+        && !sdkClient.getConnectionContext().getEnableMultipleCatalogSupport();
+  }
+
   private String autoFillCatalog(String catalog, IDatabricksSession session) {
-    if (sdkClient.getConnectionContext() != null
-        && !sdkClient.getConnectionContext().getEnableMultipleCatalogSupport()
+    if (isMultipleCatalogSupportDisabled()
         && (catalog == null || catalog.isEmpty() || catalog.equals("%") || catalog.equals("*"))) {
       String currentCatalog = getCurrentCatalog(session);
       return (currentCatalog != null && !currentCatalog.isEmpty()) ? currentCatalog : "";
@@ -84,8 +88,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   @Override
   public DatabricksResultSet listCatalogs(IDatabricksSession session) throws SQLException {
     // If multiple catalog support is disabled, return only the current catalog
-    if (sdkClient.getConnectionContext() != null
-        && !sdkClient.getConnectionContext().getEnableMultipleCatalogSupport()) {
+    if (isMultipleCatalogSupportDisabled()) {
       String currentCatalog = getCurrentCatalog(session);
       if (currentCatalog == null || currentCatalog.isEmpty()) {
         currentCatalog = "";
