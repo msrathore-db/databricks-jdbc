@@ -47,36 +47,13 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
         && !sdkClient.getConnectionContext().getEnableMultipleCatalogSupport();
   }
 
-  private String autoFillCatalog(String catalog, IDatabricksSession session) {
+  private String autoFillCatalog(String catalog, IDatabricksSession session) throws SQLException {
     if (isMultipleCatalogSupportDisabled()
-        && (catalog == null || catalog.isEmpty() || catalog.equals("%") || catalog.equals("*"))) {
-      String currentCatalog = getCurrentCatalog(session);
+        && (WildcardUtil.isNullOrWildcard(catalog) || catalog.isEmpty())) {
+      String currentCatalog = session.getCurrentCatalog();
       return (currentCatalog != null && !currentCatalog.isEmpty()) ? currentCatalog : "";
     }
     return catalog;
-  }
-
-  private String getCurrentCatalog(IDatabricksSession session) {
-    try {
-      DatabricksResultSet resultSet =
-          sdkClient.executeStatement(
-              "SELECT current_catalog()",
-              session.getComputeResource(),
-              new HashMap<>(),
-              StatementType.METADATA,
-              session,
-              null);
-
-      if (resultSet.next()) {
-        String currentCatalog = resultSet.getString(1);
-        return currentCatalog;
-      }
-    } catch (Exception e) {
-      LOGGER.warn(
-          "Failed to get current catalog, falling back to session catalog: {}", e.getMessage());
-      return session.getCatalog();
-    }
-    return session.getCatalog();
   }
 
   @Override
@@ -89,7 +66,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   public DatabricksResultSet listCatalogs(IDatabricksSession session) throws SQLException {
     // If multiple catalog support is disabled, return only the current catalog
     if (isMultipleCatalogSupportDisabled()) {
-      String currentCatalog = getCurrentCatalog(session);
+      String currentCatalog = session.getCurrentCatalog();
       if (currentCatalog == null || currentCatalog.isEmpty()) {
         currentCatalog = "";
       }
@@ -251,7 +228,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
 
   @Override
   public DatabricksResultSet listExportedKeys(
-      IDatabricksSession session, String catalog, String schema, String table) {
+      IDatabricksSession session, String catalog, String schema, String table) throws SQLException {
     LOGGER.debug("public ResultSet listExportedKeys() using SDK");
     catalog = autoFillCatalog(catalog, session);
     // Exported keys not tracked in DBSQL. Returning empty result set

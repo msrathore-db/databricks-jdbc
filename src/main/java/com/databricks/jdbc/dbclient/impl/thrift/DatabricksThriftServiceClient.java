@@ -70,28 +70,6 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
     return connectionContext == null || connectionContext.getEnableMultipleCatalogSupport();
   }
 
-  private String getCurrentCatalog(IDatabricksSession session) {
-    try {
-      DatabricksResultSet resultSet =
-          executeStatement(
-              "SELECT current_catalog()",
-              session.getComputeResource(),
-              new HashMap<>(),
-              StatementType.METADATA,
-              session,
-              null);
-
-      if (resultSet.next()) {
-        String currentCatalog = resultSet.getString(1);
-        return currentCatalog;
-      }
-    } catch (Exception e) {
-      LOGGER.warn(
-          "Failed to get current catalog, falling back to session catalog: {}", e.getMessage());
-    }
-    return session.getCatalog();
-  }
-
   @Override
   public IDatabricksConnectionContext getConnectionContext() {
     return connectionContext;
@@ -360,7 +338,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
 
     // If multiple catalog support is disabled, return only the current catalog
     if (!isMultipleCatalogSupportEnabled()) {
-      String currentCatalog = getCurrentCatalog(session);
+      String currentCatalog = session.getCurrentCatalog();
       if (currentCatalog == null || currentCatalog.isEmpty()) {
         currentCatalog = "";
       }
