@@ -6,11 +6,13 @@ import static com.databricks.jdbc.dbclient.impl.common.CommandConstants.*;
 import static com.databricks.jdbc.dbclient.impl.common.ImportedKeysDatabricksResultSetAdapter.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.databricks.jdbc.api.impl.DatabricksResultSet;
 import com.databricks.jdbc.api.impl.DatabricksResultSetMetaData;
 import com.databricks.jdbc.api.impl.ImmutableSqlParameter;
+import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.common.CommandName;
 import com.databricks.jdbc.common.IDatabricksComputeResource;
@@ -856,5 +858,109 @@ public class DatabricksMetadataSdkClientTest {
       // Parse syntax error is handled gracefully to return empty result set
       assertEquals(0, ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows());
     }
+  }
+
+  @Test
+  void testListSchemasWithMultipleCatalogSupportEnabled() throws SQLException {
+    when(session.getComputeResource()).thenReturn(mockedComputeResource);
+    when(mockClient.getConnectionContext()).thenReturn(mock(IDatabricksConnectionContext.class));
+    when(mockClient.getConnectionContext().getEnableMultipleCatalogSupport()).thenReturn(true);
+
+    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+
+    String expectedSQL = "SHOW SCHEMAS IN ALL CATALOGS";
+    when(mockClient.executeStatement(
+            expectedSQL,
+            mockedComputeResource,
+            new HashMap<>(),
+            StatementType.METADATA,
+            session,
+            null))
+        .thenReturn(mockedResultSet);
+
+    when(mockedResultSet.next()).thenReturn(true, true, true, false);
+    when(mockedResultSet.getObject("databaseName")).thenReturn("schema1", "schema2", "schema3");
+    doReturn(2).when(mockedMetaData).getColumnCount();
+    doReturn(SCHEMA_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(1);
+    doReturn(CATALOG_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(2);
+    when(mockedResultSet.getMetaData()).thenReturn(mockedMetaData);
+    when(mockedResultSet.findColumn(CATALOG_RESULT_COLUMN.getResultSetColumnName()))
+        .thenThrow(DatabricksSQLException.class);
+
+    DatabricksResultSet actualResult = metadataClient.listSchemas(session, null, null);
+
+    assertEquals(StatementState.SUCCEEDED, actualResult.getStatementStatus().getState());
+    assertEquals(METADATA_STATEMENT_ID, actualResult.getStatementId());
+    assertEquals(3, ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows());
+  }
+
+  @Test
+  void testListSchemasWithMultipleCatalogSupportDisabled() throws SQLException {
+    when(session.getComputeResource()).thenReturn(mockedComputeResource);
+    when(session.getCurrentCatalog()).thenReturn("current_catalog");
+    when(mockClient.getConnectionContext()).thenReturn(mock(IDatabricksConnectionContext.class));
+    when(mockClient.getConnectionContext().getEnableMultipleCatalogSupport()).thenReturn(false);
+
+    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+
+    String expectedSQL = "SHOW SCHEMAS IN current_catalog";
+    when(mockClient.executeStatement(
+            expectedSQL,
+            mockedComputeResource,
+            new HashMap<>(),
+            StatementType.METADATA,
+            session,
+            null))
+        .thenReturn(mockedResultSet);
+
+    when(mockedResultSet.next()).thenReturn(true, true, false);
+    when(mockedResultSet.getObject("databaseName")).thenReturn("schema1", "schema2");
+    doReturn(2).when(mockedMetaData).getColumnCount();
+    doReturn(SCHEMA_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(1);
+    doReturn(CATALOG_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(2);
+    when(mockedResultSet.getMetaData()).thenReturn(mockedMetaData);
+    when(mockedResultSet.findColumn(CATALOG_RESULT_COLUMN.getResultSetColumnName()))
+        .thenThrow(DatabricksSQLException.class);
+
+    DatabricksResultSet actualResult = metadataClient.listSchemas(session, null, null);
+
+    assertEquals(StatementState.SUCCEEDED, actualResult.getStatementStatus().getState());
+    assertEquals(METADATA_STATEMENT_ID, actualResult.getStatementId());
+    assertEquals(2, ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows());
+  }
+
+  @Test
+  void testListSchemasWithMultipleCatalogSupportDisabledAndSpecificCatalog() throws SQLException {
+    when(session.getComputeResource()).thenReturn(mockedComputeResource);
+    when(mockClient.getConnectionContext()).thenReturn(mock(IDatabricksConnectionContext.class));
+    when(mockClient.getConnectionContext().getEnableMultipleCatalogSupport()).thenReturn(false);
+
+    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+
+    String expectedSQL = "SHOW SCHEMAS IN specific_catalog";
+    when(mockClient.executeStatement(
+            expectedSQL,
+            mockedComputeResource,
+            new HashMap<>(),
+            StatementType.METADATA,
+            session,
+            null))
+        .thenReturn(mockedResultSet);
+
+    when(mockedResultSet.next()).thenReturn(true, false); // 1 schema from specific catalog
+    when(mockedResultSet.getObject("databaseName")).thenReturn("schema1");
+    doReturn(2).when(mockedMetaData).getColumnCount();
+    doReturn(SCHEMA_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(1);
+    doReturn(CATALOG_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(2);
+    when(mockedResultSet.getMetaData()).thenReturn(mockedMetaData);
+    when(mockedResultSet.findColumn(CATALOG_RESULT_COLUMN.getResultSetColumnName()))
+        .thenThrow(DatabricksSQLException.class);
+
+    DatabricksResultSet actualResult =
+        metadataClient.listSchemas(session, "specific_catalog", null);
+
+    assertEquals(StatementState.SUCCEEDED, actualResult.getStatementStatus().getState());
+    assertEquals(METADATA_STATEMENT_ID, actualResult.getStatementId());
+    assertEquals(1, ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows());
   }
 }
