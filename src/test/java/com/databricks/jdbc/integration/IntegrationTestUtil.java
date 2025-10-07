@@ -74,6 +74,17 @@ public class IntegrationTestUtil {
         FakeServiceConfigLoader.getProperty(DatabricksJdbcUrlParams.HTTP_PATH.getParamName()));
   }
 
+  public static String getFakeServiceBenchfoodJDBCUrl() {
+    // SSL is disabled as embedded web server of fake service uses HTTP protocol.
+    // Note that in RECORD mode, the web server interacts with production services over HTTPS.
+    String fakeServiceHost = getFakeServiceHost();
+    String benchfoodHttpPath = getDatabricksBenchfoodHTTPPath();
+
+    String jdbcUrlTemplate =
+        "jdbc:databricks://%s/default;transportMode=http;ssl=0;AuthMech=3;httpPath=%s";
+    return String.format(jdbcUrlTemplate, fakeServiceHost, benchfoodHttpPath);
+  }
+
   public static String getFakeServiceHTTPPath() {
     return FakeServiceConfigLoader.getProperty(DatabricksJdbcUrlParams.HTTP_PATH.getParamName());
   }
