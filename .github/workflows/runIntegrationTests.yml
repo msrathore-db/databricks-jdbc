@@ -37,11 +37,6 @@ jobs:
         run: |
           echo "${{ secrets.DATABRICKS_M2M_PEM }}" > /tmp/jdbc-testing-enc.pem
           chmod 600 /tmp/jdbc-testing-enc.pem
-      - name: Debug Environment Variables
-        run: |
-          echo "DATABRICKS_BENCHFOOD_TOKEN is set: ${{ secrets.DATABRICKS_BENCHFOOD_TOKEN != '' }}"
-          echo "DATABRICKS_BENCHFOOD_HTTP_PATH is set: ${{ secrets.DATABRICKS_BENCHFOOD_HTTP_PATH != '' }}"
-          echo "DATABRICKS_BENCHFOOD_HOST is set: ${{ secrets.DATABRICKS_BENCHFOOD_HOST != '' }}"
       - name: Run Integration Tests
         run: ${{ matrix.test-command }}
         env:

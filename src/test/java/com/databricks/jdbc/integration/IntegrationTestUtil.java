@@ -173,7 +173,7 @@ public class IntegrationTestUtil {
   }
 
   public static String getDatabricksBenchfoodToken() {
-    return System.getenv("DATABRICKS_BENCHFOOD_TOKEN");
+    return Optional.ofNullable(System.getenv("DATABRICKS_BENCHFOOD_TOKEN")).orElse("token");
   }
 
   public static String getDatabricksHTTPPath() {
