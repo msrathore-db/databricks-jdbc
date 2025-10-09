@@ -197,6 +197,12 @@ public class DatabricksMetadataSdkClientTest {
 
   @Test
   void testListTableTypes() throws SQLException {
+    // Mock the connection context for the table types test
+    IDatabricksConnectionContext mockConnectionContext =
+        org.mockito.Mockito.mock(IDatabricksConnectionContext.class);
+    when(mockConnectionContext.getEnableMetricViewMetadata()).thenReturn(false);
+    when(mockClient.getConnectionContext()).thenReturn(mockConnectionContext);
+
     DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
     DatabricksResultSet actualResult = metadataClient.listTableTypes(session);
     assertEquals(actualResult.getStatementStatus().getState(), StatementState.SUCCEEDED);

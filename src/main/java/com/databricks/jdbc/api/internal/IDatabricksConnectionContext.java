@@ -374,4 +374,7 @@ public interface IDatabricksConnectionContext {
 
   /** Returns whether transaction-related method calls should be ignored */
   boolean getIgnoreTransactions();
+
+  /* Returns whether metric view metadata is enabled */
+  boolean getEnableMetricViewMetadata();
 }
