@@ -48,8 +48,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   }
 
   private String autoFillCatalog(String catalog, IDatabricksSession session) throws SQLException {
-    if (isMultipleCatalogSupportDisabled()
-        && (WildcardUtil.isNullOrWildcard(catalog) || catalog.isEmpty())) {
+    if (isMultipleCatalogSupportDisabled()) {
       String currentCatalog = session.getCurrentCatalog();
       return (currentCatalog != null && !currentCatalog.isEmpty()) ? currentCatalog : "";
     }
