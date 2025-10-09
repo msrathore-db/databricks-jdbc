@@ -14,11 +14,10 @@ import org.junit.jupiter.api.Test;
 public class BenchfoodMetadataIntegrationTests extends AbstractFakeServiceIntegrationTests {
 
   @BeforeAll
-  static void setupBenchfoodEnvironment() {
-    String benchfoodHost = getDatabricksBenchfoodHost();
-    if (benchfoodHost != null && !benchfoodHost.isEmpty()) {
-      String fullUrl =
-          benchfoodHost.startsWith("http") ? benchfoodHost : "https://" + benchfoodHost;
+  static void setupEnvironment() {
+    String Host = getDatabricksBenchfoodHost();
+    if (Host != null && !Host.isEmpty()) {
+      String fullUrl = Host.startsWith("http") ? Host : "https://" + Host;
       setDatabricksApiTargetUrl(fullUrl);
     }
   }
