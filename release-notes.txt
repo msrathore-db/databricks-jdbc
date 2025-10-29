@@ -6,6 +6,20 @@ The release notes summarize enhancements, new features, known issues, workflow c
 
 Version History ==============================================================
 
+3.0.2 ========================================================================
+
+Released 2025-10-29
+
+IMPORTANT NOTICE
+ * This is a patch release to address a severe SDK token-caching regression.
+ * Versions 1.0.10 through 3.0.1 are NOT RECOMMENDED due to this issue.
+ * Users on affected versions should upgrade to 3.0.2
+
+Resolved Issues
+The following issue has been resolved in Databricks JDBC Driver 3.0.2.
+
+ * Fixed SDK token-caching regression causing excessive token endpoint calls and rate limiting.
+
 3.0.1 ========================================================================
 
 Released 2025-10-13
