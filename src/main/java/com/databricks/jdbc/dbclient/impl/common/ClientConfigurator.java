@@ -282,8 +282,11 @@ public class ClientConfigurator {
    * @return true if the port is available, false otherwise
    */
   boolean isPortAvailable(int port) {
-    try (ServerSocket serverSocket = new ServerSocket(port)) {
+    try {
+      ServerSocket serverSocket = new ServerSocket();
       serverSocket.setReuseAddress(true);
+      serverSocket.bind(new java.net.InetSocketAddress(port));
+      serverSocket.close();
       return true;
     } catch (IOException e) {
       return false;

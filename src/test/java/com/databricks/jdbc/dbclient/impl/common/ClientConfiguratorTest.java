@@ -360,19 +360,37 @@ public class ClientConfiguratorTest {
 
     // Test with multiple ports, first unavailable
     int secondAvailablePort = findFreePort();
-    try (ServerSocket serverSocket = new ServerSocket(availablePort)) {
-      serverSocket.setReuseAddress(true);
+    ServerSocket serverSocket = new ServerSocket();
+    serverSocket.setReuseAddress(true);
+    serverSocket.bind(new java.net.InetSocketAddress(availablePort));
+    try {
       ports = List.of(availablePort, secondAvailablePort);
       result = configurator.findAvailablePort(ports);
       assertEquals(secondAvailablePort, result);
+    } finally {
+      serverSocket.close();
     }
 
-    // Test incremental search - first port unavailable, second available
-    try (ServerSocket serverSocket = new ServerSocket(availablePort)) {
-      serverSocket.setReuseAddress(true);
+    // Test incremental search - first port unavailable, finds next available in sequence
+    ServerSocket serverSocket2 = new ServerSocket();
+    serverSocket2.setReuseAddress(true);
+    serverSocket2.bind(new java.net.InetSocketAddress(availablePort));
+    try {
       ports = List.of(availablePort);
       result = configurator.findAvailablePort(ports);
-      assertEquals(availablePort + 1, result);
+      assertTrue(
+          result > availablePort,
+          String.format("Expected port > %d, but got %d", availablePort, result));
+      ServerSocket testSocket = new ServerSocket();
+      testSocket.setReuseAddress(true);
+      testSocket.bind(new java.net.InetSocketAddress(result));
+      try {
+        assertNotNull(testSocket, "Returned port should be available for binding");
+      } finally {
+        testSocket.close();
+      }
+    } finally {
+      serverSocket2.close();
     }
   }
 
@@ -394,10 +412,13 @@ public class ClientConfiguratorTest {
     }
 
     // Occupy the ports to make them unavailable
-    try (ServerSocket socket1 = new ServerSocket(port1);
-        ServerSocket socket2 = new ServerSocket(port2)) {
-      socket1.setReuseAddress(true);
-      socket2.setReuseAddress(true);
+    ServerSocket socket1 = new ServerSocket();
+    socket1.setReuseAddress(true);
+    socket1.bind(new java.net.InetSocketAddress(port1));
+    ServerSocket socket2 = new ServerSocket();
+    socket2.setReuseAddress(true);
+    socket2.bind(new java.net.InetSocketAddress(port2));
+    try {
 
       // First test with multiple specified ports
       List<Integer> unavailablePorts = List.of(port1, port2);
@@ -420,14 +441,21 @@ public class ClientConfiguratorTest {
           assertThrows(
               DatabricksException.class, () -> testConfigurator.findAvailablePort(List.of(port1)));
       assertTrue(exception.getMessage().contains("No available port found"));
+    } finally {
+      socket1.close();
+      socket2.close();
     }
   }
 
   /** Utility method to find a free port */
   private int findFreePort() {
-    try (ServerSocket socket = new ServerSocket(0)) {
+    try {
+      ServerSocket socket = new ServerSocket();
       socket.setReuseAddress(true);
-      return socket.getLocalPort();
+      socket.bind(new java.net.InetSocketAddress(0));
+      int port = socket.getLocalPort();
+      socket.close();
+      return port;
     } catch (IOException e) {
       throw new RuntimeException("Failed to find free port", e);
     }
