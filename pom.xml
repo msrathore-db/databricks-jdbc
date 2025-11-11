@@ -5,7 +5,7 @@
   <groupId>com.databricks</groupId>
   <artifactId>databricks-jdbc</artifactId>
   <!-- This value may be modified by a release script to reflect the current version of the driver. -->
-  <version>1.0.11-oss</version>
+  <version>3.0.1</version>
   <packaging>jar</packaging>
   <name>Databricks JDBC Driver</name>
   <description>Databricks JDBC Driver.</description>
@@ -56,7 +56,7 @@
     <httpclient.version>4.5.14</httpclient.version>
     <commons-configuration.version>2.10.1</commons-configuration.version>
     <commons-io.version>2.14.0</commons-io.version>
-    <databricks-sdk.version>0.65.0</databricks-sdk.version>
+    <databricks-sdk.version>0.67.3</databricks-sdk.version>
     <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
     <sql-logic-test.version>0.3</sql-logic-test.version>
     <lz4-compression.version>1.8.0</lz4-compression.version>
@@ -286,6 +286,11 @@
       <groupId>io.github.resilience4j</groupId>
       <artifactId>resilience4j-core</artifactId>
       <version>${resilience4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.locationtech.jts</groupId>
+      <artifactId>jts-core</artifactId>
+      <version>1.20.0</version>
     </dependency>
   </dependencies>
 
@@ -538,6 +543,10 @@
                 <relocation>
                   <pattern>org.json</pattern>
                   <shadedPattern>com.databricks.internal.json</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.locationtech.jts</pattern>
+                  <shadedPattern>com.databricks.internal.jts</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.osgi</pattern>

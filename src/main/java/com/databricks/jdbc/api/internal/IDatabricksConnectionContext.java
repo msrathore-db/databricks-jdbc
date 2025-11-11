@@ -74,6 +74,8 @@ public interface IDatabricksConnectionContext {
 
   LogLevel getLogLevel();
 
+  TelemetryLogLevel getTelemetryLogLevel();
+
   String getLogPathString();
 
   int getLogFileSize();
@@ -386,6 +388,17 @@ public interface IDatabricksConnectionContext {
   /** Returns whether transaction-related method calls should be ignored */
   boolean getIgnoreTransactions();
 
+  /**
+   * Returns whether to fetch auto-commit state from server using SQL query instead of cached value
+   */
+  boolean getFetchAutoCommitFromServer();
+
   /* Returns whether metric view metadata is enabled */
   boolean getEnableMetricViewMetadata();
+
+  /**
+   * Returns whether the x-databricks-sea-can-run-fully-sync header should be enabled for
+   * synchronous metadata requests in SEA mode
+   */
+  boolean isSeaSyncMetadataEnabled();
 }

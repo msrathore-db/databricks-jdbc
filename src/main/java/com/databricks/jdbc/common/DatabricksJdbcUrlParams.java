@@ -5,6 +5,7 @@ import java.sql.DriverPropertyInfo;
 /** Enum to hold all the Databricks JDBC URL parameters. */
 public enum DatabricksJdbcUrlParams {
   LOG_LEVEL("loglevel", "Log level for debugging"),
+  TELEMETRY_LOG_LEVEL("telemetryLogLevel", "Log level for telemetry logs", "DEBUG"),
   LOG_PATH("logpath", "Path to the log file"),
   LOG_FILE_SIZE("LogFileSize", "Maximum size of the log file", "10"), // 10 MB
   LOG_FILE_COUNT("LogFileCount", "Number of log files to retain", "10"),
@@ -164,9 +165,18 @@ public enum DatabricksJdbcUrlParams {
       "Enable SQL query execution for connection validation in isValid() method",
       "0"),
   IGNORE_TRANSACTIONS("IgnoreTransactions", "Ignore transaction-related method calls", "0"),
+  FETCH_AUTOCOMMIT_FROM_SERVER(
+      "FetchAutoCommitFromServer",
+      "Fetch auto-commit state from server using SQL query instead of using cached value",
+      "0"),
   ENABLE_METRIC_VIEW_METADATA("EnableMetricViewMetadata", "Enable metric view metadata", "0"),
   ENABLE_MULTIPLE_CATALOG_SUPPORT(
-      "enableMultipleCatalogSupport", "Enable multiple catalog support", "1");
+      "enableMultipleCatalogSupport", "Enable multiple catalog support", "1"),
+  ENABLE_SEA_SYNC_METADATA(
+      "EnableSeaSyncMetadata",
+      "Enable x-databricks-sea-can-run-fully-sync header for synchronous metadata requests in SEA mode",
+      "1");
+
   private final String paramName;
   private final String defaultValue;
   private final String description;
