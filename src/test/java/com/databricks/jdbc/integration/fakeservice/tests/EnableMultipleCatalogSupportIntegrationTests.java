@@ -11,7 +11,8 @@ import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-public class BenchfoodMetadataIntegrationTests extends AbstractFakeServiceIntegrationTests {
+public class EnableMultipleCatalogSupportIntegrationTests
+    extends AbstractFakeServiceIntegrationTests {
 
   @BeforeAll
   static void setupEnvironment() {
