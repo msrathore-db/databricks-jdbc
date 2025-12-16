@@ -101,7 +101,7 @@ public class DatabricksConnectionTest {
     connection = new DatabricksConnection(connectionContext, databricksClient);
     connection.open();
     when(databricksClient.executeStatement(
-            eq("SET CATALOG hive_metastore"),
+            eq("SET CATALOG `hive_metastore`"),
             eq(new Warehouse(WAREHOUSE_ID)),
             eq(new HashMap<>()),
             eq(StatementType.SQL),
@@ -109,7 +109,7 @@ public class DatabricksConnectionTest {
             any()))
         .thenReturn(resultSet);
     when(databricksClient.executeStatement(
-            eq("USE SCHEMA default"),
+            eq("USE SCHEMA `default`"),
             eq(new Warehouse(WAREHOUSE_ID)),
             eq(new HashMap<>()),
             eq(StatementType.SQL),
@@ -206,7 +206,7 @@ public class DatabricksConnectionTest {
     connection = new DatabricksConnection(connectionContext, databricksClient);
     connection.open();
     when(databricksClient.executeStatement(
-            eq("SET CATALOG invalid catalog"),
+            eq("SET CATALOG `invalid catalog`"),
             eq(new Warehouse(WAREHOUSE_ID)),
             eq(new HashMap<>()),
             eq(StatementType.SQL),
@@ -217,7 +217,7 @@ public class DatabricksConnectionTest {
                 "[PARSE_SYNTAX_ERROR] Syntax error at or near 'schema'",
                 DatabricksDriverErrorCode.EXECUTE_STATEMENT_FAILED));
     when(databricksClient.executeStatement(
-            eq("USE SCHEMA invalid schema"),
+            eq("USE SCHEMA `invalid schema`"),
             eq(new Warehouse(WAREHOUSE_ID)),
             eq(new HashMap<>()),
             eq(StatementType.SQL),
