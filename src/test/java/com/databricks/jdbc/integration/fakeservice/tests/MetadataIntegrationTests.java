@@ -192,4 +192,47 @@ public class MetadataIntegrationTests extends AbstractFakeServiceIntegrationTest
               postRequestedFor(urlEqualTo(STATEMENT_PATH)));
     }
   }
+
+  @Test
+  void testMetadataOperationsWithHyphenatedIdentifiers() throws SQLException {
+    DatabaseMetaData metaData = connection.getMetaData();
+
+    String existingCatalog = "main";
+    String schemaWithHyphens = "test-schema-hyphen";
+    String tableWithHyphens = "test-table-hyphen";
+
+    try {
+      executeSQL(
+          connection,
+          "CREATE SCHEMA IF NOT EXISTS `" + existingCatalog + "`.`" + schemaWithHyphens + "`");
+
+      executeSQL(
+          connection,
+          "CREATE TABLE IF NOT EXISTS `"
+              + existingCatalog
+              + "`.`"
+              + schemaWithHyphens
+              + "`.`"
+              + tableWithHyphens
+              + "` (id INT, name STRING)");
+
+      try (ResultSet tables = metaData.getTables(existingCatalog, schemaWithHyphens, "%", null)) {
+        assertTrue(tables.next(), "Should retrieve tables from schema with hyphens");
+        String tableName = tables.getString("TABLE_NAME");
+        assertNotNull(tableName, "Table name should not be null");
+      }
+
+      try (ResultSet columns =
+          metaData.getColumns(existingCatalog, schemaWithHyphens, tableWithHyphens, null)) {
+        assertTrue(columns.next(), "Should retrieve columns from table with hyphens");
+        String columnName = columns.getString("COLUMN_NAME");
+        assertNotNull(columnName, "Column name should not be null");
+      }
+
+    } finally {
+      executeSQL(
+          connection,
+          "DROP SCHEMA IF EXISTS `" + existingCatalog + "`.`" + schemaWithHyphens + "` CASCADE");
+    }
+  }
 }

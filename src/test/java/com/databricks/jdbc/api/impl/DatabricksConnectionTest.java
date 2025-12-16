@@ -125,6 +125,56 @@ public class DatabricksConnectionTest {
   }
 
   @Test
+  public void testSetCatalogAndSchemaWithHyphenatedIdentifiers() throws SQLException {
+    when(databricksClient.createSession(
+            new Warehouse(WAREHOUSE_ID), CATALOG, SCHEMA, new HashMap<>()))
+        .thenReturn(IMMUTABLE_SESSION_INFO);
+    connection = new DatabricksConnection(connectionContext, databricksClient);
+    connection.open();
+
+    String catalogWithHyphen = "catalog-with-hyphen";
+    when(databricksClient.executeStatement(
+            eq("SET CATALOG `" + catalogWithHyphen + "`"),
+            eq(new Warehouse(WAREHOUSE_ID)),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(),
+            any()))
+        .thenReturn(resultSet);
+    connection.setCatalog(catalogWithHyphen);
+    assertEquals(connection.getCatalog(), catalogWithHyphen);
+
+    String schemaWithHyphen = "schema-with-hyphen";
+    when(databricksClient.executeStatement(
+            eq("USE SCHEMA `" + schemaWithHyphen + "`"),
+            eq(new Warehouse(WAREHOUSE_ID)),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(),
+            any()))
+        .thenReturn(resultSet);
+    connection.setSchema(schemaWithHyphen);
+    assertEquals(connection.getSchema(), schemaWithHyphen);
+
+    verify(databricksClient)
+        .executeStatement(
+            eq("SET CATALOG `" + catalogWithHyphen + "`"),
+            eq(new Warehouse(WAREHOUSE_ID)),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(),
+            any());
+    verify(databricksClient)
+        .executeStatement(
+            eq("USE SCHEMA `" + schemaWithHyphen + "`"),
+            eq(new Warehouse(WAREHOUSE_ID)),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(),
+            any());
+  }
+
+  @Test
   public void testGetSchemaAndCatalog_schemaAndCatalogNotSetViaURL() throws SQLException {
     when(databricksClient.createSession(new Warehouse(WAREHOUSE_ID), null, null, new HashMap<>()))
         .thenReturn(IMMUTABLE_SESSION_INFO);
