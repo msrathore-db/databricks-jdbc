@@ -187,6 +187,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
 
     // Fetch current catalog if catalog is null
     if (catalog == null) {
+      // #TODO: Make server side changes
       LOGGER.debug("Catalog is null, fetching current catalog for listFunctions");
       catalog = session.getCurrentCatalog();
 
