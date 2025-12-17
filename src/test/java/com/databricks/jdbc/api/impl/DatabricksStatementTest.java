@@ -773,4 +773,168 @@ public class DatabricksStatementTest {
     DatabricksConnection connection = new DatabricksConnection(connectionContext, client);
     return connection;
   }
+
+  // Tests for Issue #1063: getLargeUpdateCount() should return -1 instead of throwing exception
+
+  @Test
+  public void testGetLargeUpdateCountAfterNoMoreResults() throws Exception {
+    // Setup
+    DatabricksConnection connection = getTestConnection();
+    DatabricksStatement statement = new DatabricksStatement(connection);
+
+    when(client.executeStatement(
+            eq(STATEMENT),
+            eq(WAREHOUSE_COMPUTE),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(IDatabricksSession.class),
+            eq(statement)))
+        .thenReturn(resultSet);
+    when(resultSet.hasUpdateCount()).thenReturn(false); // SELECT query
+
+    // Execute and get result set
+    statement.execute(STATEMENT);
+    statement.getResultSet();
+
+    // Advance past results
+    assertFalse(statement.getMoreResults());
+
+    // Should return -1, not throw exception
+    assertEquals(-1, statement.getLargeUpdateCount());
+    assertEquals(-1, statement.getUpdateCount());
+  }
+
+  @Test
+  public void testGetLargeUpdateCountForSelect() throws Exception {
+    // Setup
+    DatabricksConnection connection = getTestConnection();
+    DatabricksStatement statement = new DatabricksStatement(connection);
+
+    when(client.executeStatement(
+            eq(STATEMENT),
+            eq(WAREHOUSE_COMPUTE),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(IDatabricksSession.class),
+            eq(statement)))
+        .thenReturn(resultSet);
+    when(resultSet.hasUpdateCount()).thenReturn(false); // SELECT query
+
+    // Execute SELECT query
+    statement.execute(STATEMENT);
+
+    // Should return -1 for SELECT statements
+    assertEquals(-1, statement.getLargeUpdateCount());
+    assertEquals(-1, statement.getUpdateCount());
+  }
+
+  @Test
+  public void testGetLargeUpdateCountForUpdate() throws Exception {
+    // Setup
+    DatabricksConnection connection = getTestConnection();
+    DatabricksStatement statement = new DatabricksStatement(connection);
+    String updateSql = "UPDATE test_table SET col = 'value'";
+
+    when(client.executeStatement(
+            eq(updateSql),
+            eq(WAREHOUSE_COMPUTE),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(IDatabricksSession.class),
+            eq(statement)))
+        .thenReturn(resultSet);
+    when(resultSet.hasUpdateCount()).thenReturn(true);
+    when(resultSet.getUpdateCount()).thenReturn(42L);
+
+    // Execute UPDATE query
+    statement.execute(updateSql);
+
+    // Should return actual update count
+    assertEquals(42L, statement.getLargeUpdateCount());
+    assertEquals(42, statement.getUpdateCount());
+  }
+
+  @Test
+  public void testUpdateCountConsistency() throws Exception {
+    // Setup
+    DatabricksConnection connection = getTestConnection();
+    DatabricksStatement statement = new DatabricksStatement(connection);
+
+    when(client.executeStatement(
+            eq(STATEMENT),
+            eq(WAREHOUSE_COMPUTE),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(IDatabricksSession.class),
+            eq(statement)))
+        .thenReturn(resultSet);
+    when(resultSet.hasUpdateCount()).thenReturn(false);
+
+    // Execute and advance past results
+    statement.execute(STATEMENT);
+    statement.getResultSet();
+    statement.getMoreResults();
+
+    // Both methods should return the same value (-1)
+    assertEquals(statement.getUpdateCount(), (int) statement.getLargeUpdateCount());
+  }
+
+  @Test
+  public void testGetUpdateCountOverflow() throws Exception {
+    // Setup
+    DatabricksConnection connection = getTestConnection();
+    DatabricksStatement statement = new DatabricksStatement(connection);
+    String updateSql = "UPDATE large_table SET col = 'value'";
+    long largeCount = ((long) Integer.MAX_VALUE) + 100L;
+
+    when(client.executeStatement(
+            eq(updateSql),
+            eq(WAREHOUSE_COMPUTE),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(IDatabricksSession.class),
+            eq(statement)))
+        .thenReturn(resultSet);
+    when(resultSet.hasUpdateCount()).thenReturn(true);
+    when(resultSet.getUpdateCount()).thenReturn(largeCount);
+
+    // Execute UPDATE with large count
+    statement.execute(updateSql);
+
+    // getLargeUpdateCount should return actual count
+    assertEquals(largeCount, statement.getLargeUpdateCount());
+
+    // getUpdateCount should return SUCCESS_NO_INFO for overflow
+    assertEquals(Statement.SUCCESS_NO_INFO, statement.getUpdateCount());
+  }
+
+  @Test
+  public void testJdbcStopCondition() throws Exception {
+    // Setup - test the standard JDBC stop condition pattern
+    DatabricksConnection connection = getTestConnection();
+    DatabricksStatement statement = new DatabricksStatement(connection);
+
+    when(client.executeStatement(
+            eq(STATEMENT),
+            eq(WAREHOUSE_COMPUTE),
+            eq(new HashMap<>()),
+            eq(StatementType.SQL),
+            any(IDatabricksSession.class),
+            eq(statement)))
+        .thenReturn(resultSet);
+    when(resultSet.hasUpdateCount()).thenReturn(false);
+
+    // Execute query
+    statement.execute(STATEMENT);
+    statement.getResultSet();
+
+    // Standard JDBC stop condition should work without exception
+    boolean hasMoreResults = false;
+    do {
+      hasMoreResults = statement.getMoreResults();
+    } while (hasMoreResults || statement.getUpdateCount() != -1);
+
+    // After loop, should be able to call getLargeUpdateCount() without exception
+    assertEquals(-1, statement.getLargeUpdateCount());
+  }
 }
