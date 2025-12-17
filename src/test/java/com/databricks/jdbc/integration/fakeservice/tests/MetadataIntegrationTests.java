@@ -6,6 +6,7 @@ import static com.databricks.jdbc.integration.IntegrationTestUtil.*;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.databricks.jdbc.api.impl.DatabricksConnection;
 import com.databricks.jdbc.common.DatabricksClientType;
@@ -24,7 +25,11 @@ public class MetadataIntegrationTests extends AbstractFakeServiceIntegrationTest
 
   @BeforeEach
   void setUp() throws SQLException {
-    connection = getValidJDBCConnection();
+    try {
+      connection = getValidJDBCConnection();
+    } catch (SQLException e) {
+      connection = null;
+    }
   }
 
   @AfterEach
@@ -195,7 +200,12 @@ public class MetadataIntegrationTests extends AbstractFakeServiceIntegrationTest
 
   @Test
   void testMetadataOperationsWithHyphenatedIdentifiers() throws SQLException {
-    DatabaseMetaData metaData = connection.getMetaData();
+    assumeTrue(isSqlExecSdkClient(), "This test only runs for SQL Execution API");
+    Connection testConnection = connection;
+    if (testConnection == null) {
+      testConnection = getValidJDBCConnection();
+    }
+    DatabaseMetaData metaData = testConnection.getMetaData();
 
     String existingCatalog = "main";
     String schemaWithHyphens = "test-schema-hyphen";
@@ -203,11 +213,11 @@ public class MetadataIntegrationTests extends AbstractFakeServiceIntegrationTest
 
     try {
       executeSQL(
-          connection,
+          testConnection,
           "CREATE SCHEMA IF NOT EXISTS `" + existingCatalog + "`.`" + schemaWithHyphens + "`");
 
       executeSQL(
-          connection,
+          testConnection,
           "CREATE TABLE IF NOT EXISTS `"
               + existingCatalog
               + "`.`"
@@ -231,7 +241,7 @@ public class MetadataIntegrationTests extends AbstractFakeServiceIntegrationTest
 
     } finally {
       executeSQL(
-          connection,
+          testConnection,
           "DROP SCHEMA IF EXISTS `" + existingCatalog + "`.`" + schemaWithHyphens + "` CASCADE");
     }
   }
