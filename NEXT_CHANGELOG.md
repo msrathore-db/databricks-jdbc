@@ -11,6 +11,9 @@
 - Bumped `com.fasterxml.jackson.core:jackson-core` from 2.18.3 to 2.18.6.
 - Fat jar now routes SDK and Apache HTTP client logs through Java Util Logging (JUL), removing the need for external logging libraries.
 - PECOBLR-1121 Arrow patch to circumvent Arrow issues with JDK 16+.
+- Log timestamps now explicitly display timezone.
+- **[Breaking Change]** `PreparedStatement.setTimestamp(int, Timestamp, Calendar)` now properly applies Calendar timezone conversion using LocalDateTime pattern (inline with `getTimestamp`). Previously Calendar parameter was ineffective.
+- `DatabaseMetaData.getColumns()` with null catalog parameter now retrieves columns from all available catalogs when using SQL Execution API.
 
 ### Fixed
 - Fixed Thrift polling infinite loop when server restarts invalidate operation handles, and added configurable timeout (`MetadataOperationTimeout`, default 300s) with sleep between polls for metadata operations.
