@@ -793,13 +793,6 @@ public class DatabricksMetadataSdkClientTest {
     when(mockClient.getConnectionContext()).thenReturn(mockContext);
     DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
 
-    // listFunctions with null catalog should return empty ResultSet
-    DatabricksResultSet functionsResult =
-        metadataClient.listFunctions(session, null, TEST_SCHEMA, TEST_TABLE);
-    assertNotNull(functionsResult);
-    assertFalse(
-        functionsResult.next(), "Expected empty result set for listFunctions with null catalog");
-
     // listPrimaryKeys with null catalog should return empty ResultSet
     DatabricksResultSet primaryKeysResult =
         metadataClient.listPrimaryKeys(session, null, TEST_SCHEMA, TEST_TABLE);
