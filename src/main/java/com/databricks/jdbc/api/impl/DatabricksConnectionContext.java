@@ -11,6 +11,7 @@ import static com.databricks.jdbc.common.util.WildcardUtil.isNullOrEmpty;
 
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.common.*;
+import com.databricks.jdbc.common.SeaCircuitBreakerManager;
 import com.databricks.jdbc.common.safe.DatabricksDriverFeatureFlagsContextFactory;
 import com.databricks.jdbc.common.util.ValidationUtil;
 import com.databricks.jdbc.exception.DatabricksDriverException;
@@ -332,13 +333,9 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
     if (getParameter(AUTH_SCOPE) != null) {
       return Collections.singletonList(getAuthScope());
     }
-    if (getCloud() == Cloud.AWS || getCloud() == Cloud.GCP) {
-      return Arrays.asList(
-          DatabricksJdbcConstants.SQL_SCOPE, DatabricksJdbcConstants.OFFLINE_ACCESS_SCOPE);
-    } else {
-      // Default scope is already being set for Azure in databricks-sdk.
-      return null;
-    }
+    // Use uniform default scopes for all clouds: sql and offline_access
+    return Arrays.asList(
+        DatabricksJdbcConstants.SQL_SCOPE, DatabricksJdbcConstants.OFFLINE_ACCESS_SCOPE);
   }
 
   @Override
@@ -457,6 +454,16 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
       }
     }
     // Now, user has not provided a value, we will decide based on our checks
+    // Check if circuit breaker is open due to recent 429 rate limit failures
+    if (SeaCircuitBreakerManager.isCircuitOpen()) {
+      long remainingMs = SeaCircuitBreakerManager.getTimeRemainingMs();
+      LOGGER.debug(
+          "SEA circuit breaker is OPEN due to recent 429 rate limit failures. "
+              + "Using THRIFT client. Circuit will close in {} ({}ms)",
+          SeaCircuitBreakerManager.getTimeRemainingFormatted(),
+          remainingMs);
+      return DatabricksClientType.THRIFT;
+    }
     // Check if Arrow is disabled - Thrift is required for inline mode
     if (!Objects.equals(getParameter(DatabricksJdbcUrlParams.ENABLE_ARROW), "1")) {
       return DatabricksClientType.THRIFT;
@@ -1157,7 +1164,7 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
 
   @Override
   public boolean getIgnoreTransactions() {
-    return getParameter(DatabricksJdbcUrlParams.IGNORE_TRANSACTIONS, "0").equals("1");
+    return getParameter(DatabricksJdbcUrlParams.IGNORE_TRANSACTIONS).equals("1");
   }
 
   @Override
@@ -1184,5 +1191,15 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
   @Override
   public boolean isTokenFederationEnabled() {
     return getParameter(DatabricksJdbcUrlParams.ENABLE_TOKEN_FEDERATION, "1").equals("1");
+  }
+
+  @Override
+  public boolean isStreamingChunkProviderEnabled() {
+    return getParameter(DatabricksJdbcUrlParams.ENABLE_STREAMING_CHUNK_PROVIDER).equals("1");
+  }
+
+  @Override
+  public int getLinkPrefetchWindow() {
+    return Integer.parseInt(getParameter(DatabricksJdbcUrlParams.LINK_PREFETCH_WINDOW));
   }
 }

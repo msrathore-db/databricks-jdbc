@@ -117,6 +117,15 @@ public abstract class AbstractArrowResultChunk {
   }
 
   /**
+   * Returns the start row offset of this chunk in the overall result set.
+   *
+   * @return row offset
+   */
+  public long getStartRowOffset() {
+    return rowOffset;
+  }
+
+  /**
    * Checks if the chunk link is invalid or expired.
    *
    * @return true if link is invalid, false otherwise
@@ -145,6 +154,10 @@ public abstract class AbstractArrowResultChunk {
     setStatus(ChunkStatus.CHUNK_RELEASED);
 
     return true;
+  }
+
+  public ExternalLink getChunkLink() {
+    return chunkLink;
   }
 
   /**
@@ -324,13 +337,23 @@ public abstract class AbstractArrowResultChunk {
     long rowCount = 0L;
     try (ArrowStreamReader arrowStreamReader = new ArrowStreamReader(inputStream, rootAllocator)) {
       VectorSchemaRoot vectorSchemaRoot = arrowStreamReader.getVectorSchemaRoot();
-      boolean fetchedMetadata = false;
+
+      // Extract metadata from VectorSchemaRoot before loading any batches.
+      // The Arrow IPC format sends the schema first (before any record batches),
+      // so field metadata is available even when there are 0 rows.
+      // VectorSchemaRoot will contain field vectors with metadata, but rowCount will be 0.
+      if (vectorSchemaRoot != null && vectorSchemaRoot.getFieldVectors() != null) {
+        metadata = getMetadataInformationFromSchemaRoot(vectorSchemaRoot);
+        LOGGER.debug(
+            "Extracted metadata from VectorSchemaRoot before loading batches. "
+                + "Schema has {} fields. Statement: {}, Chunk: {}",
+            vectorSchemaRoot.getFieldVectors().size(),
+            statementId,
+            chunkIndex);
+      }
+
       while (arrowStreamReader.loadNextBatch()) {
         rowCount += vectorSchemaRoot.getRowCount();
-        if (!fetchedMetadata) {
-          metadata = getMetadataInformationFromSchemaRoot(vectorSchemaRoot);
-          fetchedMetadata = true;
-        }
         recordBatchList.add(getVectorsFromSchemaRoot(vectorSchemaRoot, rootAllocator));
         vectorSchemaRoot.clear();
       }

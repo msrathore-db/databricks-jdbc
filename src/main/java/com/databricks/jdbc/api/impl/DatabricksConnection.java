@@ -180,6 +180,12 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
       return;
     }
 
+    // Skip server round-trip if using cached values and already in the requested state
+    if (!connectionContext.getFetchAutoCommitFromServer() && getAutoCommit() == autoCommit) {
+      LOGGER.debug("AutoCommit already set to {}, skipping server call", autoCommit);
+      return;
+    }
+
     // Execute SET AUTOCOMMIT command
     Statement statement = null;
     try {
@@ -446,7 +452,7 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
       return;
     }
     Statement statement = this.createStatement();
-    statement.execute("SET CATALOG " + catalog);
+    statement.execute("SET CATALOG `" + catalog + "`");
     this.session.setCatalog(catalog);
   }
 
@@ -811,7 +817,7 @@ public class DatabricksConnection implements IDatabricksConnection, IDatabricksC
   @Override
   public void setSchema(String schema) throws SQLException {
     Statement statement = this.createStatement();
-    statement.execute("USE SCHEMA " + schema);
+    statement.execute("USE SCHEMA `" + schema + "`");
     session.setSchema(schema);
   }
 
