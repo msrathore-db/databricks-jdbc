@@ -249,7 +249,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
           schema,
           table);
       return metadataResultSetBuilder.getResultSetWithGivenRowsAndColumns(
-          MetadataResultConstants.PRIMARY_KEYS_COLUMNS,
+          PRIMARY_KEYS_COLUMNS,
           new ArrayList<>(),
           METADATA_STATEMENT_ID,
           com.databricks.jdbc.common.CommandName.LIST_PRIMARY_KEYS);
@@ -283,7 +283,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
           schema,
           table);
       return metadataResultSetBuilder.getResultSetWithGivenRowsAndColumns(
-          MetadataResultConstants.IMPORTED_KEYS_COLUMNS,
+          IMPORTED_KEYS_COLUMNS,
           new ArrayList<>(),
           METADATA_STATEMENT_ID,
           com.databricks.jdbc.common.CommandName.GET_IMPORTED_KEYS);
@@ -491,7 +491,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
 
     // Convert combined data into a result set
     return metadataResultSetBuilder.getResultSetWithGivenRowsAndColumns(
-        MetadataResultConstants.COLUMN_COLUMNS,
+        COLUMN_COLUMNS,
         columnRows,
         METADATA_STATEMENT_ID,
         com.databricks.jdbc.common.CommandName.LIST_COLUMNS);
