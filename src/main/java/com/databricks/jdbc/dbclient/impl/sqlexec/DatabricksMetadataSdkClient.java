@@ -53,7 +53,10 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
     if (isMultipleCatalogSupportDisabled()) {
       String currentCatalog = session.getCurrentCatalog();
       if (currentCatalog == null || currentCatalog.isEmpty()) {
-        currentCatalog = "SPARK";
+        currentCatalog = "spark";
+        LOGGER.debug(
+            "Current catalog is null or empty when multiple catalog support is disabled. Using default catalog: {}",
+            currentCatalog);
       }
       String SQL = String.format("SELECT '%s' AS catalog", currentCatalog);
       LOGGER.debug("SQL command to fetch catalogs: {}", SQL);
@@ -381,7 +384,11 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
    */
   private String autoFillCatalog(String catalog, String currentCatalog) {
     if (isMultipleCatalogSupportDisabled() && catalog == null) {
-      return (currentCatalog != null && !currentCatalog.isEmpty()) ? currentCatalog : "SPARK";
+      String result =
+          (currentCatalog != null && !currentCatalog.isEmpty()) ? currentCatalog : "spark";
+      LOGGER.debug(
+          "Auto-filling null catalog with '{}' when multiple catalog support is disabled", result);
+      return result;
     }
     return catalog;
   }

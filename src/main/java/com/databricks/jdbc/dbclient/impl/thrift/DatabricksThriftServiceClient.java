@@ -401,7 +401,10 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
     if (!isMultipleCatalogSupportEnabled()) {
       String currentCatalog = session.getCurrentCatalog();
       if (currentCatalog == null) {
-        currentCatalog = "SPARK";
+        currentCatalog = "spark";
+        LOGGER.debug(
+            "Current catalog is null when multiple catalog support is disabled. Using default catalog: {}",
+            currentCatalog);
       }
       List<List<Object>> singleCatalogRows = new ArrayList<>();
       List<Object> catalogRow = new ArrayList<>();
@@ -502,19 +505,15 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
       String schemaNamePattern,
       String tableNamePattern,
       String columnNamePattern)
-      throws DatabricksSQLException {
+      throws SQLException {
     String context =
         String.format(
             "Fetching columns using Thrift client. Session {%s}, catalog {%s}, schemaNamePattern {%s}, tableNamePattern {%s}, columnNamePattern {%s}",
             session.toString(), catalog, schemaNamePattern, tableNamePattern, columnNamePattern);
     LOGGER.debug(context);
 
-    try {
-      if (!metadataResultSetBuilder.shouldAllowCatalogAccess(catalog, null, session)) {
-        return metadataResultSetBuilder.getColumnsResult(new ArrayList<>());
-      }
-    } catch (SQLException e) {
-      throw (DatabricksSQLException) e;
+    if (!metadataResultSetBuilder.shouldAllowCatalogAccess(catalog, null, session)) {
+      return metadataResultSetBuilder.getColumnsResult(new ArrayList<>());
     }
 
     DatabricksThreadContextHolder.setSessionId(session.getSessionId());
