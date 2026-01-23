@@ -192,7 +192,9 @@ public class DatabricksResultSetMetaData implements ResultSetMetaData {
           TColumnDesc columnDesc = resultManifest.getSchema().getColumns().get(columnIndex);
 
           String columnArrowMetadata =
-              arrowMetadata != null ? arrowMetadata.get(columnIndex) : null;
+              arrowMetadata != null && columnIndex < arrowMetadata.size()
+                  ? arrowMetadata.get(columnIndex)
+                  : null;
           ColumnInfo columnInfo = getColumnInfoFromTColumnDesc(columnDesc, columnArrowMetadata);
           int[] precisionAndScale = getPrecisionAndScale(columnInfo);
           int precision = precisionAndScale[0];

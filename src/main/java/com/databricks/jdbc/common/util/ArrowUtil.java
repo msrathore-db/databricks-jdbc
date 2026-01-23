@@ -245,7 +245,9 @@ public final class ArrowUtil {
     for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
       TColumnDesc tColumnDesc = columns.get(columnIndex);
       String columnArrowMetadata =
-          arrowMetadataList != null ? arrowMetadataList.get(columnIndex) : null;
+          arrowMetadataList != null && columnIndex < arrowMetadataList.size()
+              ? arrowMetadataList.get(columnIndex)
+              : null;
       columnInfos.add(getColumnInfoFromTColumnDesc(tColumnDesc, columnArrowMetadata));
     }
     return columnInfos;
