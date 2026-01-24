@@ -5,6 +5,8 @@ import static com.databricks.jdbc.common.MetadataResultConstants.*;
 import static com.databricks.jdbc.dbclient.impl.common.CommandConstants.*;
 import static com.databricks.jdbc.dbclient.impl.common.ImportedKeysDatabricksResultSetAdapter.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -195,6 +197,39 @@ public class DatabricksMetadataSdkClientTest {
     assertEquals(actualResult.getStatementStatus().getState(), StatementState.SUCCEEDED);
     assertEquals(actualResult.getStatementId(), GET_CATALOGS_STATEMENT_ID);
     assertEquals(((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows(), 2);
+  }
+
+  @Test
+  void listTablesReturnsEmptyWhenCatalogAccessDenied() throws SQLException {
+    IDatabricksConnectionContext connectionContext = mock(IDatabricksConnectionContext.class);
+    when(connectionContext.getEnableMultipleCatalogSupport()).thenReturn(false);
+    when(mockClient.getConnectionContext()).thenReturn(connectionContext);
+    when(session.getCurrentCatalog()).thenReturn("main");
+
+    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+
+    DatabricksResultSet result =
+        metadataClient.listTables(session, "other", null, null, new String[] {"TABLE"});
+
+    assertNotNull(result);
+    assertFalse(result.next(), "Expected no rows when catalog access is denied");
+    verify(mockClient, never()).executeStatement(anyString(), any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void listSchemasReturnsEmptyWhenCatalogIsEmptyString() throws SQLException {
+    IDatabricksConnectionContext connectionContext = mock(IDatabricksConnectionContext.class);
+    when(connectionContext.getEnableMultipleCatalogSupport()).thenReturn(false);
+    when(mockClient.getConnectionContext()).thenReturn(connectionContext);
+    when(session.getCurrentCatalog()).thenReturn("main");
+
+    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+
+    DatabricksResultSet result = metadataClient.listSchemas(session, "", null);
+
+    assertNotNull(result);
+    assertFalse(result.next(), "Expected no rows when catalog is empty string");
+    verify(mockClient, never()).executeStatement(anyString(), any(), any(), any(), any(), any());
   }
 
   @Test
