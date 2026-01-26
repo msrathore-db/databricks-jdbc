@@ -672,6 +672,7 @@ public class MetadataResultConstants {
                   FKCOLUMN_NAME,
                   KEY_SEQUENCE_COLUMN,
                   DEFERRABILITY));
+          put(CommandName.GET_CLIENT_INFO_PROPERTIES, List.of(NAME_COLUMN, MAX_LEN_COLUMN));
         }
       };
 }

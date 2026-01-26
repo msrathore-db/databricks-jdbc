@@ -3,7 +3,6 @@ package com.databricks.jdbc.dbclient.impl.sqlexec;
 import static com.databricks.jdbc.common.MetadataResultConstants.*;
 import static com.databricks.jdbc.dbclient.impl.common.CommandConstants.GET_TABLES_STATEMENT_ID;
 import static com.databricks.jdbc.dbclient.impl.common.CommandConstants.METADATA_STATEMENT_ID;
-import static com.databricks.jdbc.dbclient.impl.sqlexec.ResultConstants.TYPE_INFO_RESULT;
 
 import com.databricks.jdbc.api.impl.DatabricksResultSet;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
@@ -46,7 +45,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
   @Override
   public DatabricksResultSet listTypeInfo(IDatabricksSession session) {
     LOGGER.debug("public ResultSet getTypeInfo()");
-    return TYPE_INFO_RESULT;
+    return metadataResultSetBuilder.getTypeInfoResult();
   }
 
   @Override

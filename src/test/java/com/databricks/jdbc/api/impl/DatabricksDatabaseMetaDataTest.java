@@ -30,6 +30,8 @@ public class DatabricksDatabaseMetaDataTest {
   private IDatabricksSession session;
   private DatabricksDatabaseMetaData metaData;
   private IDatabricksMetadataClient metadataClient;
+  private com.databricks.jdbc.dbclient.impl.common.MetadataResultSetBuilder
+      metadataResultSetBuilder;
 
   @BeforeEach
   public void setup() throws SQLException {
@@ -49,7 +51,13 @@ public class DatabricksDatabaseMetaDataTest {
         .thenReturn(DatabricksConnectionContext.parse(WAREHOUSE_JDBC_URL, new Properties()));
     when(metadataClient.listCatalogs(any())).thenReturn(Mockito.mock(DatabricksResultSet.class));
     when(metadataClient.listTableTypes(any())).thenReturn(Mockito.mock(DatabricksResultSet.class));
-    when(metadataClient.listTypeInfo(any())).thenReturn(Mockito.mock(DatabricksResultSet.class));
+
+    // Create a real MetadataResultSetBuilder for TYPE_INFO and CLIENT_INFO_PROPERTIES
+    metadataResultSetBuilder =
+        new com.databricks.jdbc.dbclient.impl.common.MetadataResultSetBuilder(
+            session.getConnectionContext());
+    when(metadataClient.listTypeInfo(any()))
+        .thenAnswer(invocation -> metadataResultSetBuilder.getTypeInfoResult());
     when(metadataClient.listFunctions(any(), any(), any(), any()))
         .thenReturn(Mockito.mock(DatabricksResultSet.class));
     when(metadataClient.listColumns(any(), any(), any(), any(), any()))
@@ -1226,10 +1234,30 @@ public class DatabricksDatabaseMetaDataTest {
     }
     assertEquals(rowCount1, rowCount2, "Both calls should return the same number of rows");
 
-    // Verify data integrity on second call
-    resultSet2.beforeFirst(); // Reset cursor
-    assertTrue(resultSet2.next());
-    assertEquals("APPLICATIONNAME", resultSet2.getString(1));
+    // Verify non-nullable columns (per JDBC spec) - get metadata from second ResultSet
+    ResultSetMetaData metaData = resultSet2.getMetaData();
+    assertEquals(
+        ResultSetMetaData.columnNoNulls,
+        metaData.isNullable(1),
+        "NAME column should be non-nullable");
+    assertEquals(
+        ResultSetMetaData.columnNoNulls,
+        metaData.isNullable(2),
+        "MAX_LEN column should be non-nullable");
+    assertEquals(
+        ResultSetMetaData.columnNullable,
+        metaData.isNullable(3),
+        "DEFAULT_VALUE column should be nullable");
+    assertEquals(
+        ResultSetMetaData.columnNullable,
+        metaData.isNullable(4),
+        "DESCRIPTION column should be nullable");
+
+    // Third call to verify data integrity
+    ResultSet resultSet3 = this.metaData.getClientInfoProperties();
+    assertNotNull(resultSet3);
+    assertTrue(resultSet3.next(), "Third ResultSet should have data");
+    assertEquals("APPLICATIONNAME", resultSet3.getString(1), "First row should be APPLICATIONNAME");
   }
 
   @Test
