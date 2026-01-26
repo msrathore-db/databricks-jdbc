@@ -12,10 +12,13 @@ import static java.sql.DatabaseMetaData.*;
 
 import com.databricks.jdbc.api.impl.DatabricksResultSet;
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
+import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.common.CommandName;
 import com.databricks.jdbc.common.Nullable;
 import com.databricks.jdbc.common.StatementType;
 import com.databricks.jdbc.exception.DatabricksSQLException;
+import com.databricks.jdbc.log.JdbcLogger;
+import com.databricks.jdbc.log.JdbcLoggerFactory;
 import com.databricks.jdbc.model.core.ColumnMetadata;
 import com.databricks.jdbc.model.core.ResultColumn;
 import com.databricks.jdbc.model.core.StatementStatus;
@@ -30,6 +33,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class MetadataResultSetBuilder {
+  private static final JdbcLogger LOGGER =
+      JdbcLoggerFactory.getLogger(MetadataResultSetBuilder.class);
   private static final IDatabricksResultSetAdapter defaultAdapter =
       new DefaultDatabricksResultSetAdapter();
   private static final IDatabricksResultSetAdapter importedKeysAdapter =
@@ -467,6 +472,31 @@ public class MetadataResultSetBuilder {
 
   public MetadataResultSetBuilder(IDatabricksConnectionContext ctx) {
     this.ctx = ctx;
+  }
+
+  public boolean shouldAllowCatalogAccess(
+      String catalog, String currentCatalog, IDatabricksSession session) throws SQLException {
+    if (ctx == null || ctx.getEnableMultipleCatalogSupport()) {
+      return true;
+    }
+
+    if (catalog == null) {
+      return true;
+    }
+
+    if (currentCatalog == null) {
+      currentCatalog = session.getCurrentCatalog();
+    }
+
+    if (currentCatalog != null && currentCatalog.equals(catalog)) {
+      return true;
+    }
+
+    LOGGER.debug(
+        "Catalog access denied for catalog '{}' when enableMultipleCatalogSupport=false. Current catalog is '{}'",
+        catalog,
+        currentCatalog);
+    return false;
   }
 
   public DatabricksResultSet getFunctionsResult(DatabricksResultSet resultSet, String catalog)

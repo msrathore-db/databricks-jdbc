@@ -36,6 +36,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -62,6 +63,13 @@ public class DatabricksThriftServiceClientTest {
   @Mock DatabricksStatement statement;
   @Mock DatabricksConfig databricksConfig;
   @Mock ResultSetMetaData mockedMetaData;
+
+  @BeforeEach
+  void setUp() {
+    // Enable multiple catalog support by default for all tests
+    // Individual tests can override this if needed
+    lenient().when(connectionContext.getEnableMultipleCatalogSupport()).thenReturn(true);
+  }
 
   @Test
   void testCreateSession() throws DatabricksSQLException {
