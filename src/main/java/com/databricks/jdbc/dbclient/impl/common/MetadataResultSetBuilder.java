@@ -33,10 +33,70 @@ public class MetadataResultSetBuilder {
       new DefaultDatabricksResultSetAdapter();
   private static final IDatabricksResultSetAdapter importedKeysAdapter =
       new ImportedKeysDatabricksResultSetAdapter();
+
+  /**
+   * Static data for TYPE_INFO, extracted once from the legacy constant to avoid reusing the same
+   * ResultSet instance. See issue #1178.
+   */
+  private static final List<List<Object>> TYPE_INFO_DATA = extractTypeInfoData();
+
+  /**
+   * Static data for CLIENT_INFO_PROPERTIES, extracted once from the legacy constant to avoid
+   * reusing the same ResultSet instance. See issue #1178.
+   */
+  private static final List<List<Object>> CLIENT_INFO_PROPERTIES_DATA =
+      extractClientInfoPropertiesData();
+
   private final IDatabricksConnectionContext ctx;
 
   public MetadataResultSetBuilder(IDatabricksConnectionContext ctx) {
     this.ctx = ctx;
+  }
+
+  /**
+   * Extracts TYPE_INFO data from the legacy static ResultSet constant.
+   *
+   * @return List of rows for TYPE_INFO
+   */
+  private static List<List<Object>> extractTypeInfoData() {
+    try {
+      DatabricksResultSet rs =
+          com.databricks.jdbc.dbclient.impl.sqlexec.ResultConstants.TYPE_INFO_RESULT;
+      List<List<Object>> rows = new ArrayList<>();
+      while (rs.next()) {
+        List<Object> row = new ArrayList<>();
+        for (int i = 1; i <= 18; i++) { // 18 columns in TYPE_INFO
+          row.add(rs.getObject(i));
+        }
+        rows.add(row);
+      }
+      return rows;
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to extract TYPE_INFO data", e);
+    }
+  }
+
+  /**
+   * Extracts CLIENT_INFO_PROPERTIES data from the legacy static ResultSet constant.
+   *
+   * @return List of rows for CLIENT_INFO_PROPERTIES
+   */
+  private static List<List<Object>> extractClientInfoPropertiesData() {
+    try {
+      DatabricksResultSet rs =
+          com.databricks.jdbc.dbclient.impl.sqlexec.ResultConstants.CLIENT_INFO_PROPERTIES_RESULT;
+      List<List<Object>> rows = new ArrayList<>();
+      while (rs.next()) {
+        List<Object> row = new ArrayList<>();
+        for (int i = 1; i <= 4; i++) { // 4 columns in CLIENT_INFO_PROPERTIES
+          row.add(rs.getObject(i));
+        }
+        rows.add(row);
+      }
+      return rows;
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to extract CLIENT_INFO_PROPERTIES data", e);
+    }
   }
 
   public DatabricksResultSet getFunctionsResult(DatabricksResultSet resultSet, String catalog)
@@ -1050,5 +1110,44 @@ public class MetadataResultSetBuilder {
         getThriftRows(rows, FUNCTION_COLUMNS),
         GET_FUNCTIONS_STATEMENT_ID,
         CommandName.LIST_FUNCTIONS);
+  }
+
+  /**
+   * Creates a new TYPE_INFO ResultSet instance.
+   *
+   * <p>This method creates a fresh ResultSet instance each time to ensure proper cursor state and
+   * avoid issues with reusing closed ResultSets. See issue #1178.
+   *
+   * @return a new DatabricksResultSet with TYPE_INFO data
+   */
+  public DatabricksResultSet getTypeInfoResult() {
+    // Create a deep copy of the data to ensure each ResultSet has independent state
+    List<List<Object>> rowsCopy = new ArrayList<>();
+    for (List<Object> row : TYPE_INFO_DATA) {
+      rowsCopy.add(new ArrayList<>(row));
+    }
+    return getResultSetWithGivenRowsAndColumns(
+        TYPE_INFO_COLUMNS, rowsCopy, "typeinfo-metadata", CommandName.LIST_TYPE_INFO);
+  }
+
+  /**
+   * Creates a new CLIENT_INFO_PROPERTIES ResultSet instance.
+   *
+   * <p>This method creates a fresh ResultSet instance each time to ensure proper cursor state and
+   * avoid issues with reusing closed ResultSets. See issue #1178.
+   *
+   * @return a new DatabricksResultSet with CLIENT_INFO_PROPERTIES data
+   */
+  public DatabricksResultSet getClientInfoPropertiesResult() {
+    // Create a deep copy of the data to ensure each ResultSet has independent state
+    List<List<Object>> rowsCopy = new ArrayList<>();
+    for (List<Object> row : CLIENT_INFO_PROPERTIES_DATA) {
+      rowsCopy.add(new ArrayList<>(row));
+    }
+    return getResultSetWithGivenRowsAndColumns(
+        CLIENT_INFO_PROPERTIES_COLUMNS,
+        rowsCopy,
+        "client-info-properties-metadata",
+        CommandName.GET_CLIENT_INFO_PROPERTIES);
   }
 }

@@ -1158,6 +1158,81 @@ public class DatabricksDatabaseMetaDataTest {
   }
 
   @Test
+  public void testGetTypeInfoMultipleCalls() throws SQLException {
+    // This test verifies issue #1178 fix: ResultSets should be usable multiple times per session
+
+    // First call to getTypeInfo()
+    ResultSet resultSet1 = metaData.getTypeInfo();
+    assertNotNull(resultSet1);
+
+    // Consume all rows from first ResultSet
+    int rowCount1 = 0;
+    while (resultSet1.next()) {
+      rowCount1++;
+    }
+    assertTrue(rowCount1 > 0, "TYPE_INFO should have at least one row");
+
+    // Close first ResultSet
+    resultSet1.close();
+    assertTrue(resultSet1.isClosed(), "ResultSet should be closed");
+
+    // Second call to getTypeInfo() should return a NEW, usable ResultSet
+    ResultSet resultSet2 = metaData.getTypeInfo();
+    assertNotNull(resultSet2);
+    assertFalse(resultSet2.isClosed(), "Second ResultSet should not be closed");
+
+    // Should be able to iterate through second ResultSet
+    int rowCount2 = 0;
+    while (resultSet2.next()) {
+      rowCount2++;
+    }
+    assertEquals(rowCount1, rowCount2, "Both calls should return the same number of rows");
+
+    // Third call should also work
+    ResultSet resultSet3 = metaData.getTypeInfo();
+    assertNotNull(resultSet3);
+    assertFalse(resultSet3.isClosed(), "Third ResultSet should not be closed");
+    assertTrue(resultSet3.next(), "Third ResultSet should have data");
+  }
+
+  @Test
+  public void testGetClientInfoPropertiesMultipleCalls() throws SQLException {
+    // This test verifies issue #1178 fix: ResultSets should be usable multiple times per session
+
+    // First call to getClientInfoProperties()
+    ResultSet resultSet1 = metaData.getClientInfoProperties();
+    assertNotNull(resultSet1);
+
+    // Consume all rows from first ResultSet
+    int rowCount1 = 0;
+    while (resultSet1.next()) {
+      rowCount1++;
+    }
+    assertEquals(3, rowCount1, "CLIENT_INFO_PROPERTIES should have exactly 3 rows");
+
+    // Close first ResultSet
+    resultSet1.close();
+    assertTrue(resultSet1.isClosed(), "ResultSet should be closed");
+
+    // Second call to getClientInfoProperties() should return a NEW, usable ResultSet
+    ResultSet resultSet2 = metaData.getClientInfoProperties();
+    assertNotNull(resultSet2);
+    assertFalse(resultSet2.isClosed(), "Second ResultSet should not be closed");
+
+    // Should be able to iterate through second ResultSet
+    int rowCount2 = 0;
+    while (resultSet2.next()) {
+      rowCount2++;
+    }
+    assertEquals(rowCount1, rowCount2, "Both calls should return the same number of rows");
+
+    // Verify data integrity on second call
+    resultSet2.beforeFirst(); // Reset cursor
+    assertTrue(resultSet2.next());
+    assertEquals("APPLICATIONNAME", resultSet2.getString(1));
+  }
+
+  @Test
   public void testGetCrossReference() throws SQLException {
     ResultSet resultSet =
         metaData.getCrossReference(
