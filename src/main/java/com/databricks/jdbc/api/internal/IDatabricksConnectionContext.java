@@ -179,6 +179,8 @@ public interface IDatabricksConnectionContext {
 
   int getIdleHttpConnectionExpiry();
 
+  List<String> getNonRowcountQueryPrefixes();
+
   boolean supportManyParameters();
 
   String getConnectionURL();
