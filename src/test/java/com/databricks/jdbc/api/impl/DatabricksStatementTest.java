@@ -1166,7 +1166,8 @@ public class DatabricksStatementTest {
             eq(new HashMap<>()),
             eq(StatementType.SQL),
             any(IDatabricksSession.class),
-            eq(statement)))
+            eq(statement),
+            any()))
         .thenReturn(resultSet);
 
     // Execute INSERT statement
@@ -1197,7 +1198,8 @@ public class DatabricksStatementTest {
             eq(new HashMap<>()),
             eq(StatementType.SQL),
             any(IDatabricksSession.class),
-            eq(statement)))
+            eq(statement),
+            any()))
         .thenReturn(resultSet);
 
     // Execute INSERT statement
