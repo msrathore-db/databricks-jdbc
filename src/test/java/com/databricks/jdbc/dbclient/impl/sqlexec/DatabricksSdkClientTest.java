@@ -208,7 +208,8 @@ public class DatabricksSdkClientTest {
             sqlParams,
             StatementType.QUERY,
             connection.getSession(),
-            statement);
+            statement,
+            null);
     assertEquals(STATEMENT_ID, statement.getStatementId());
     assertNotNull(resultSet.getMetaData());
 
@@ -351,7 +352,8 @@ public class DatabricksSdkClientTest {
                 sqlParams,
                 StatementType.QUERY,
                 connection.getSession(),
-                statement));
+                statement,
+                null));
 
     // Verify no cancellation occurred due to timeout
     verify(apiClient, atLeastOnce())
@@ -431,7 +433,8 @@ public class DatabricksSdkClientTest {
                     sqlParams,
                     StatementType.QUERY,
                     connection.getSession(),
-                    statement));
+                    statement,
+                    null));
 
     assertTrue(exception.getMessage().contains("timed-out after 1 seconds"));
 
@@ -489,7 +492,8 @@ public class DatabricksSdkClientTest {
                 sqlParams,
                 StatementType.QUERY,
                 connection.getSession(),
-                statement));
+                statement,
+                null));
   }
 
   @Test
@@ -664,7 +668,8 @@ public class DatabricksSdkClientTest {
         new HashMap<>(),
         StatementType.METADATA,
         connection.getSession(),
-        statement);
+        statement,
+        null);
 
     // Verify that the request was made with the correct header
     verify(apiClient, atLeastOnce())
@@ -727,7 +732,8 @@ public class DatabricksSdkClientTest {
         new HashMap<>(),
         StatementType.QUERY,
         connection.getSession(),
-        statement);
+        statement,
+        null);
 
     // Verify that the request was made WITHOUT the header
     verify(apiClient, atLeastOnce())
@@ -763,7 +769,8 @@ public class DatabricksSdkClientTest {
         new HashMap<>(),
         StatementType.METADATA,
         connection.getSession(),
-        statement);
+        statement,
+        null);
 
     // Verify that the request was made WITHOUT the header
     verify(apiClient, atLeastOnce())
@@ -828,7 +835,8 @@ public class DatabricksSdkClientTest {
         new HashMap<>(),
         StatementType.QUERY,
         connection.getSession(),
-        statement);
+        statement,
+        null);
 
     // Verify that markAsClosed was called on the statement
     verify(statement, times(1)).markAsClosed();
@@ -884,6 +892,7 @@ public class DatabricksSdkClientTest {
                 new HashMap<>(),
                 StatementType.QUERY,
                 connection.getSession(),
+                null,
                 null));
   }
 }

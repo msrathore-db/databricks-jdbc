@@ -53,6 +53,10 @@ public interface IDatabricksClient {
    * @param statementType type of statement (metadata, update or generic SQL)
    * @param session underlying session
    * @param parentStatement statement instance if called from a statement
+   * @param metadataOperationType optional metadata operation type for CP-side logging (e.g.,
+   *     "GetTables", "GetColumns"). Pass null for non-metadata operations. When provided, adds
+   *     X-Databricks-Sea-Metadata-Operation-Type header to help distinguish metadata operations
+   *     from regular SQL queries in logs.
    * @return response for statement execution
    */
   @DatabricksMetricsTimed
@@ -62,7 +66,8 @@ public interface IDatabricksClient {
       Map<Integer, ImmutableSqlParameter> parameters,
       StatementType statementType,
       IDatabricksSession session,
-      IDatabricksStatementInternal parentStatement)
+      IDatabricksStatementInternal parentStatement,
+      String metadataOperationType)
       throws SQLException;
 
   /**

@@ -60,13 +60,13 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
       }
       String SQL = String.format("SELECT '%s' AS catalog", currentCatalog);
       LOGGER.debug("SQL command to fetch catalogs: {}", SQL);
-      return metadataResultSetBuilder.getCatalogsResult(getResultSet(SQL, session));
+      return metadataResultSetBuilder.getCatalogsResult(getResultSet(SQL, session, "GetCatalogs"));
     }
 
     CommandBuilder commandBuilder = new CommandBuilder(session);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_CATALOGS);
     LOGGER.debug("SQL command to fetch catalogs: {}", SQL);
-    return metadataResultSetBuilder.getCatalogsResult(getResultSet(SQL, session));
+    return metadataResultSetBuilder.getCatalogsResult(getResultSet(SQL, session, "GetCatalogs"));
   }
 
   @Override
@@ -95,7 +95,8 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
     String SQL = commandBuilder.getSQLString(CommandName.LIST_SCHEMAS);
     LOGGER.debug("SQL command to fetch schemas: {}", SQL);
     try {
-      return metadataResultSetBuilder.getSchemasResult(getResultSet(SQL, session), catalog);
+      return metadataResultSetBuilder.getSchemasResult(
+          getResultSet(SQL, session, "GetSchemas"), catalog);
     } catch (SQLException e) {
       if (WildcardUtil.isNullOrWildcard(catalog)
           && PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())) {
@@ -140,7 +141,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
     LOGGER.debug(String.format("SQL command to fetch tables: {%s}", SQL));
     try {
       return metadataResultSetBuilder.getTablesResult(
-          getResultSet(SQL, session), validatedTableTypes);
+          getResultSet(SQL, session, "GetTables"), validatedTableTypes);
     } catch (SQLException e) {
       if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())
           && (catalog == null || catalog.equals("*") || catalog.equals("%"))) {
@@ -191,7 +192,7 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
             .setColumnPattern(columnNamePattern);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_COLUMNS);
     LOGGER.debug("SQL command to fetch columns: {}", SQL);
-    return metadataResultSetBuilder.getColumnsResult(getResultSet(SQL, session));
+    return metadataResultSetBuilder.getColumnsResult(getResultSet(SQL, session, "GetColumns"));
   }
 
   @Override
@@ -230,7 +231,8 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
             .setFunctionPattern(functionNamePattern);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_FUNCTIONS);
     LOGGER.debug("SQL command to fetch functions: {}", SQL);
-    return metadataResultSetBuilder.getFunctionsResult(getResultSet(SQL, session), catalog);
+    return metadataResultSetBuilder.getFunctionsResult(
+        getResultSet(SQL, session, "GetFunctions"), catalog);
   }
 
   @Override
@@ -262,7 +264,8 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
         new CommandBuilder(catalog, session).setSchema(schema).setTable(table);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_PRIMARY_KEYS);
     LOGGER.debug("SQL command to fetch primary keys: {}", SQL);
-    return metadataResultSetBuilder.getPrimaryKeysResult(getResultSet(SQL, session));
+    return metadataResultSetBuilder.getPrimaryKeysResult(
+        getResultSet(SQL, session, "GetPrimaryKeys"));
   }
 
   @Override
@@ -296,7 +299,8 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
         new CommandBuilder(catalog, session).setSchema(schema).setTable(table);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_FOREIGN_KEYS);
     try {
-      return metadataResultSetBuilder.getImportedKeysResult(getResultSet(SQL, session));
+      return metadataResultSetBuilder.getImportedKeysResult(
+          getResultSet(SQL, session, "GetCrossReference"));
     } catch (SQLException e) {
       if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())) {
         // This is a workaround for the issue where the SQL command fails with "syntax error at or
@@ -351,7 +355,10 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
     String SQL = commandBuilder.getSQLString(CommandName.LIST_FOREIGN_KEYS);
     try {
       return metadataResultSetBuilder.getCrossReferenceKeysResult(
-          getResultSet(SQL, session), parentCatalog, parentSchema, parentTable);
+          getResultSet(SQL, session, "GetCrossReference"),
+          parentCatalog,
+          parentSchema,
+          parentTable);
     } catch (SQLException e) {
       if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())) {
         // This is a workaround for the issue where the SQL command fails with "syntax error at or
@@ -393,15 +400,16 @@ public class DatabricksMetadataSdkClient implements IDatabricksMetadataClient {
     return catalog;
   }
 
-  private DatabricksResultSet getResultSet(String SQL, IDatabricksSession session)
-      throws SQLException {
+  private DatabricksResultSet getResultSet(
+      String SQL, IDatabricksSession session, String metadataOperationType) throws SQLException {
     return sdkClient.executeStatement(
         SQL,
         session.getComputeResource(),
         new HashMap<>(),
         StatementType.METADATA,
         session,
-        null /* parentStatement */);
+        null /* parentStatement */,
+        metadataOperationType);
   }
 
   private DatabricksResultSet fetchSchemasAcrossCatalogs(
