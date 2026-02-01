@@ -59,8 +59,8 @@ public class DatabricksSdkClient implements IDatabricksClient {
   private static final JdbcLogger LOGGER = JdbcLoggerFactory.getLogger(DatabricksSdkClient.class);
   private static final String SYNC_TIMEOUT_VALUE = "10s";
   private static final String ASYNC_TIMEOUT_VALUE = "0s";
-  private static final String HEADER_SEA_METADATA_OPERATION_TYPE =
-      "X-Databricks-Sea-Metadata-Operation-Type";
+  private static final String HEADER_METADATA_OPERATION_TYPE =
+      "X-Databricks-Metadata-Operation-Type";
   private final IDatabricksConnectionContext connectionContext;
   private final ClientConfigurator clientConfigurator;
   private volatile WorkspaceClient workspaceClient;
@@ -560,11 +560,9 @@ public class DatabricksSdkClient implements IDatabricksClient {
 
     // Add metadata operation type header for SEA metadata logging
     if (metadataOperationType != null && !metadataOperationType.isEmpty()) {
-      headers.put(HEADER_SEA_METADATA_OPERATION_TYPE, metadataOperationType);
+      headers.put(HEADER_METADATA_OPERATION_TYPE, metadataOperationType);
       LOGGER.debug(
-          "Adding {} header with value: {}",
-          HEADER_SEA_METADATA_OPERATION_TYPE,
-          metadataOperationType);
+          "Adding {} header with value: {}", HEADER_METADATA_OPERATION_TYPE, metadataOperationType);
     }
 
     // Overriding with URL defined headers

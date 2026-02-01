@@ -55,8 +55,8 @@ public interface IDatabricksClient {
    * @param parentStatement statement instance if called from a statement
    * @param metadataOperationType optional metadata operation type for CP-side logging (e.g.,
    *     "GetTables", "GetColumns"). Pass null for non-metadata operations. When provided, adds
-   *     X-Databricks-Sea-Metadata-Operation-Type header to help distinguish metadata operations
-   *     from regular SQL queries in logs.
+   *     X-Databricks-Metadata-Operation-Type header to help distinguish metadata operations from
+   *     regular SQL queries in logs.
    * @return response for statement execution
    */
   @DatabricksMetricsTimed
