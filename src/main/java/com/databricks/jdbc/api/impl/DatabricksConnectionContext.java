@@ -1163,6 +1163,16 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
   }
 
   @Override
+  public List<String> getNonRowcountQueryPrefixes() {
+    String prefixesStr = getParameter(DatabricksJdbcUrlParams.NON_ROWCOUNT_QUERY_PREFIXES);
+    return Arrays.stream(prefixesStr.split(","))
+        .map(String::trim)
+        .map(String::toUpperCase)
+        .filter(s -> !s.isEmpty())
+        .collect(Collectors.toList());
+  }
+
+  @Override
   public boolean getIgnoreTransactions() {
     return getParameter(DatabricksJdbcUrlParams.IGNORE_TRANSACTIONS).equals("1");
   }
