@@ -17,6 +17,7 @@
 - **Enhanced `enableMultipleCatalogSupport` behavior**: When this parameter is disabled (`enableMultipleCatalogSupport=0`), metadata operations (such as `getSchemas()`, `getTables()`, `getColumns()`, etc.) now return results only when the catalog parameter is either `null` or matches the current catalog. For any other catalog name, an empty result set is returned. This ensures metadata queries are restricted to the current catalog context. When enabled (`enableMultipleCatalogSupport=1`), metadata operations continue to work across all accessible catalogs.
 
 ### Fixed
+- Fixed `getTypeInfo()` and `getClientInfoProperties()` to return fresh ResultSet instances on each call instead of shared static instances. This resolves issues where calling these methods multiple times would fail due to exhausted cursor state (Issue #1178).
 - Fixed complex data type metadata support when retrieving 0 rows in Arrow format
 - Normalized TIMESTAMP_NTZ to TIMESTAMP in Thrift path for consistency with SEA behavior
 - Fixed complex types not being returned as objects in SEA Inline mode when `EnableComplexDatatypeSupport=true`.
