@@ -20,6 +20,7 @@ import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.common.CommandName;
 import com.databricks.jdbc.common.IDatabricksComputeResource;
+import com.databricks.jdbc.common.MetadataOperationType;
 import com.databricks.jdbc.common.StatementType;
 import com.databricks.jdbc.dbclient.impl.common.CrossReferenceKeysDatabricksResultSetAdapter;
 import com.databricks.jdbc.dbclient.impl.common.ImportedKeysDatabricksResultSetAdapter;
@@ -175,7 +176,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCatalogs")))
+            eq(MetadataOperationType.GET_CATALOGS)))
         .thenReturn(mockedCatalogResultSet);
     when(mockedCatalogResultSet.next()).thenReturn(true, true, false);
     for (ResultColumn resultColumn : CATALOG_COLUMNS) {
@@ -293,7 +294,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
 
     // Mock result set iteration
@@ -369,7 +370,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
 
@@ -439,7 +440,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     when(mockedResultSet.getObject("databaseName")).thenReturn(TEST_COLUMN);
@@ -468,7 +469,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetSchemas")))
+            eq(MetadataOperationType.GET_SCHEMAS)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     when(mockedResultSet.getObject("databaseName")).thenReturn(TEST_COLUMN);
@@ -503,7 +504,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetPrimaryKeys")))
+            eq(MetadataOperationType.GET_PRIMARY_KEYS)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     for (ResultColumn resultColumn : PRIMARY_KEYS_COLUMNS) {
@@ -541,7 +542,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCrossReference")))
+            eq(MetadataOperationType.GET_CROSS_REFERENCE)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     for (ResultColumn resultColumn : IMPORTED_KEYS_COLUMNS) {
@@ -591,7 +592,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCrossReference")))
+            eq(MetadataOperationType.GET_CROSS_REFERENCE)))
         .thenThrow(exception);
     try (DatabricksResultSet actualResult =
         metadataClient.listImportedKeys(session, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE)) {
@@ -652,7 +653,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCrossReference")))
+            eq(MetadataOperationType.GET_CROSS_REFERENCE)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     when(mockedResultSet.getString(PARENT_CATALOG_NAME.getResultSetColumnName()))
@@ -734,7 +735,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCrossReference")))
+            eq(MetadataOperationType.GET_CROSS_REFERENCE)))
         .thenThrow(exception);
     try (DatabricksResultSet actualResult =
         metadataClient.listCrossReferences(
@@ -765,7 +766,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCrossReference")))
+            eq(MetadataOperationType.GET_CROSS_REFERENCE)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     when(mockedResultSet.getString(PARENT_CATALOG_NAME.getResultSetColumnName()))
@@ -822,7 +823,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     doReturn(6).when(mockedMetaData).getColumnCount();
@@ -863,7 +864,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     doReturn(6).when(mockedMetaData).getColumnCount();
@@ -926,7 +927,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetTables")))
+            eq(MetadataOperationType.GET_TABLES)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     for (ResultColumn resultColumn : TABLE_COLUMNS) {
@@ -971,7 +972,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetTables")))
+            eq(MetadataOperationType.GET_TABLES)))
         .thenThrow(exception);
     try (DatabricksResultSet actualResult =
         metadataClient.listTables(session, null, TEST_SCHEMA, TEST_TABLE, null)) {
@@ -999,7 +1000,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
 
     when(mockedResultSet.next()).thenReturn(true, true, true, false);
@@ -1035,7 +1036,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
 
     when(mockedResultSet.next()).thenReturn(true, true, false);
@@ -1073,7 +1074,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetTables")))
+            eq(MetadataOperationType.GET_TABLES)))
         .thenThrow(exception);
 
     // This should throw the original exception, not NPE
@@ -1101,7 +1102,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetSchemas")))
+            eq(MetadataOperationType.GET_SCHEMAS)))
         .thenThrow(exception);
 
     // This should throw the original exception, not NPE
@@ -1129,7 +1130,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCrossReference")))
+            eq(MetadataOperationType.GET_CROSS_REFERENCE)))
         .thenThrow(exception);
 
     // This should throw the original exception, not NPE
@@ -1158,7 +1159,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            eq("GetCrossReference")))
+            eq(MetadataOperationType.GET_CROSS_REFERENCE)))
         .thenThrow(exception);
 
     // This should throw the original exception, not NPE
@@ -1193,7 +1194,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedCatalogResultSet);
 
     when(mockedCatalogResultSet.next()).thenReturn(true, false);
@@ -1267,7 +1268,7 @@ public class DatabricksMetadataSdkClientTest {
             eq(StatementType.METADATA),
             eq(session),
             any(),
-            anyString()))
+            any(MetadataOperationType.class)))
         .thenReturn(mockedResultSet);
 
     when(mockedResultSet.next()).thenReturn(true, false);

@@ -61,6 +61,56 @@ public class DatabricksSdkClient implements IDatabricksClient {
   private static final String ASYNC_TIMEOUT_VALUE = "0s";
   private static final String HEADER_METADATA_OPERATION_TYPE =
       "X-Databricks-Metadata-Operation-Type";
+
+  /** Context object for building request headers. Avoids method parameter bloat. */
+  private static class HeaderContext {
+    private final String method;
+    private final StatementType statementType;
+    private final boolean isAsync;
+    private final MetadataOperationType metadataOperationType;
+
+    private HeaderContext(Builder builder) {
+      this.method = builder.method;
+      this.statementType = builder.statementType;
+      this.isAsync = builder.isAsync;
+      this.metadataOperationType = builder.metadataOperationType;
+    }
+
+    static Builder builder(String method) {
+      return new Builder(method);
+    }
+
+    static class Builder {
+      private final String method;
+      private StatementType statementType;
+      private boolean isAsync;
+      private MetadataOperationType metadataOperationType;
+
+      Builder(String method) {
+        this.method = method;
+      }
+
+      Builder statementType(StatementType statementType) {
+        this.statementType = statementType;
+        return this;
+      }
+
+      Builder isAsync(boolean isAsync) {
+        this.isAsync = isAsync;
+        return this;
+      }
+
+      Builder metadataOperationType(MetadataOperationType metadataOperationType) {
+        this.metadataOperationType = metadataOperationType;
+        return this;
+      }
+
+      HeaderContext build() {
+        return new HeaderContext(this);
+      }
+    }
+  }
+
   private final IDatabricksConnectionContext connectionContext;
   private final ClientConfigurator clientConfigurator;
   private volatile WorkspaceClient workspaceClient;
@@ -123,7 +173,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
     CreateSessionResponse createSessionResponse = null;
     try {
       Request req = new Request(Request.POST, SESSION_PATH, apiClient.serialize(request));
-      req.withHeaders(getHeaders("createSession"));
+      req.withHeaders(getHeaders(HeaderContext.builder("createSession").build()));
       createSessionResponse = apiClient.execute(req, CreateSessionResponse.class);
     } catch (DatabricksError e) {
       if (e.getStatusCode() == TEMPORARY_REDIRECT_STATUS_CODE) {
@@ -165,7 +215,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
     String path = String.format(SESSION_PATH_WITH_ID, request.getSessionId());
     try {
       Request req = new Request(Request.DELETE, path);
-      req.withHeaders(getHeaders("deleteSession"));
+      req.withHeaders(getHeaders(HeaderContext.builder("deleteSession").build()));
       ApiClient.setQuery(req, request);
       apiClient.execute(req, Void.class);
     } catch (IOException e) {
@@ -183,7 +233,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
       StatementType statementType,
       IDatabricksSession session,
       IDatabricksStatementInternal parentStatement,
-      String metadataOperationType)
+      MetadataOperationType metadataOperationType)
       throws SQLException {
     LOGGER.debug(
         "public DatabricksResultSet executeStatement(String sql = {}, compute resource = {}, Map<Integer, ImmutableSqlParameter> parameters = {}, StatementType statementType = {}, IDatabricksSession session = {}, parentStatement = {}, metadataOperationType = {})",
@@ -210,7 +260,12 @@ public class DatabricksSdkClient implements IDatabricksClient {
     ExecuteStatementResponse response;
     try {
       Request req = new Request(Request.POST, STATEMENT_PATH, apiClient.serialize(request));
-      req.withHeaders(getHeaders("executeStatement", statementType, false, metadataOperationType));
+      req.withHeaders(
+          getHeaders(
+              HeaderContext.builder("executeStatement")
+                  .statementType(statementType)
+                  .metadataOperationType(metadataOperationType)
+                  .build()));
       response = apiClient.execute(req, ExecuteStatementResponse.class);
     } catch (IOException e) {
       String errorMessage = "Error while processing the execute statement request";
@@ -269,7 +324,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
       String getStatusPath = String.format(STATEMENT_PATH_WITH_ID, statementId);
       try {
         Request req = new Request(Request.GET, getStatusPath, apiClient.serialize(request));
-        req.withHeaders(getHeaders("getStatement"));
+        req.withHeaders(getHeaders(HeaderContext.builder("getStatement").build()));
         response = wrapGetStatementResponse(apiClient.execute(req, GetStatementResponse.class));
       } catch (IOException e) {
         String errorMessage = "Error while processing the get statement response";
@@ -336,7 +391,12 @@ public class DatabricksSdkClient implements IDatabricksClient {
     ExecuteStatementResponse response;
     try {
       Request req = new Request(Request.POST, STATEMENT_PATH, apiClient.serialize(request));
-      req.withHeaders(getHeaders("executeStatement", statementType, true));
+      req.withHeaders(
+          getHeaders(
+              HeaderContext.builder("executeStatement")
+                  .statementType(statementType)
+                  .isAsync(true)
+                  .build()));
       response = apiClient.execute(req, ExecuteStatementResponse.class);
     } catch (IOException e) {
       String errorMessage = "Error while processing the execute statement async request";
@@ -379,7 +439,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
     GetStatementResponse response;
     try {
       Request req = new Request(Request.GET, getStatusPath, apiClient.serialize(request));
-      req.withHeaders(getHeaders("getStatement"));
+      req.withHeaders(getHeaders(HeaderContext.builder("getStatement").build()));
       response = apiClient.execute(req, GetStatementResponse.class);
     } catch (IOException e) {
       String errorMessage = "Error while processing the get statement result request";
@@ -405,7 +465,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
     String path = String.format(STATEMENT_PATH_WITH_ID, request.getStatementId());
     try {
       Request req = new Request(Request.DELETE, path, apiClient.serialize(request));
-      req.withHeaders(getHeaders("closeStatement"));
+      req.withHeaders(getHeaders(HeaderContext.builder("closeStatement").build()));
       apiClient.execute(req, Void.class);
     } catch (IOException e) {
       String errorMessage = "Error while processing the close statement request";
@@ -423,7 +483,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
     String path = String.format(CANCEL_STATEMENT_PATH_WITH_ID, request.getStatementId());
     try {
       Request req = new Request(Request.POST, path, apiClient.serialize(request));
-      req.withHeaders(getHeaders("cancelStatement"));
+      req.withHeaders(getHeaders(HeaderContext.builder("cancelStatement").build()));
       apiClient.execute(req, Void.class);
     } catch (IOException e) {
       String errorMessage = "Error while processing the cancel statement request";
@@ -445,7 +505,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
     String path = String.format(RESULT_CHUNK_PATH, statementId, chunkIndex);
     try {
       Request req = new Request(Request.GET, path, apiClient.serialize(request));
-      req.withHeaders(getHeaders("getStatementResultN"));
+      req.withHeaders(getHeaders(HeaderContext.builder("getStatementResultN").build()));
       ResultData resultData = apiClient.execute(req, ResultData.class);
       return buildChunkLinkFetchResult(resultData.getExternalLinks());
     } catch (IOException e) {
@@ -499,7 +559,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
     String path = String.format(RESULT_CHUNK_PATH, statementId, chunkIndex);
     try {
       Request req = new Request(Request.GET, path, apiClient.serialize(request));
-      req.withHeaders(getHeaders("getStatementResultN"));
+      req.withHeaders(getHeaders(HeaderContext.builder("getStatementResultN").build()));
       return apiClient.execute(req, ResultData.class);
     } catch (IOException e) {
       String errorMessage = "Error while processing the get result chunk request";
@@ -533,36 +593,28 @@ public class DatabricksSdkClient implements IDatabricksClient {
             || statementType == StatementType.METADATA);
   }
 
-  private Map<String, String> getHeaders(String method) {
-    return getHeaders(method, null, false, null);
-  }
-
-  private Map<String, String> getHeaders(
-      String method, StatementType statementType, boolean isAsync) {
-    return getHeaders(method, statementType, isAsync, null);
-  }
-
-  private Map<String, String> getHeaders(
-      String method, StatementType statementType, boolean isAsync, String metadataOperationType) {
+  private Map<String, String> getHeaders(HeaderContext ctx) {
     Map<String, String> headers = new HashMap<>(JSON_HTTP_HEADERS);
     if (connectionContext.isRequestTracingEnabled()) {
       String traceHeader = TracingUtil.getTraceHeader();
-      LOGGER.debug("Tracing header for method {}: [{}]", method, traceHeader);
+      LOGGER.debug("Tracing header for method {}: [{}]", ctx.method, traceHeader);
       headers.put(TracingUtil.TRACE_HEADER, traceHeader);
     }
 
     // Add SEA sync metadata header when appropriate
-    if (shouldAddSeaSyncMetadataHeader(statementType, isAsync)) {
+    if (shouldAddSeaSyncMetadataHeader(ctx.statementType, ctx.isAsync)) {
       headers.put("x-databricks-sea-can-run-fully-sync", "true");
       LOGGER.debug(
           "Adding x-databricks-sea-can-run-fully-sync header for synchronous metadata request");
     }
 
     // Add metadata operation type header for SEA metadata logging
-    if (metadataOperationType != null && !metadataOperationType.isEmpty()) {
-      headers.put(HEADER_METADATA_OPERATION_TYPE, metadataOperationType);
+    if (ctx.metadataOperationType != null) {
+      headers.put(HEADER_METADATA_OPERATION_TYPE, ctx.metadataOperationType.getHeaderValue());
       LOGGER.debug(
-          "Adding {} header with value: {}", HEADER_METADATA_OPERATION_TYPE, metadataOperationType);
+          "Adding {} header with value: {}",
+          HEADER_METADATA_OPERATION_TYPE,
+          ctx.metadataOperationType.getHeaderValue());
     }
 
     // Overriding with URL defined headers

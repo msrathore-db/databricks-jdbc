@@ -14,6 +14,7 @@ import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.api.internal.IDatabricksStatementInternal;
 import com.databricks.jdbc.common.IDatabricksComputeResource;
+import com.databricks.jdbc.common.MetadataOperationType;
 import com.databricks.jdbc.common.StatementType;
 import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
 import com.databricks.jdbc.common.util.DriverUtil;
@@ -151,7 +152,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
       StatementType statementType,
       IDatabricksSession session,
       IDatabricksStatementInternal parentStatement,
-      String metadataOperationType)
+      MetadataOperationType metadataOperationType)
       throws SQLException {
     // Note: metadataOperationType is ignored in Thrift mode as metadata operations use native
     // Thrift RPCs (GetTables, GetColumns, etc.) which are already logged correctly.

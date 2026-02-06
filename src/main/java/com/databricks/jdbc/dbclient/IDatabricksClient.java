@@ -5,6 +5,7 @@ import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.api.internal.IDatabricksStatementInternal;
 import com.databricks.jdbc.common.IDatabricksComputeResource;
+import com.databricks.jdbc.common.MetadataOperationType;
 import com.databricks.jdbc.common.StatementType;
 import com.databricks.jdbc.dbclient.impl.common.StatementId;
 import com.databricks.jdbc.exception.DatabricksSQLException;
@@ -54,7 +55,7 @@ public interface IDatabricksClient {
    * @param session underlying session
    * @param parentStatement statement instance if called from a statement
    * @param metadataOperationType optional metadata operation type for CP-side logging (e.g.,
-   *     "GetTables", "GetColumns"). Pass null for non-metadata operations. When provided, adds
+   *     GET_TABLES, GET_COLUMNS). Pass null for non-metadata operations. When provided, adds
    *     X-Databricks-Metadata-Operation-Type header to help distinguish metadata operations from
    *     regular SQL queries in logs.
    * @return response for statement execution
@@ -67,7 +68,7 @@ public interface IDatabricksClient {
       StatementType statementType,
       IDatabricksSession session,
       IDatabricksStatementInternal parentStatement,
-      String metadataOperationType)
+      MetadataOperationType metadataOperationType)
       throws SQLException;
 
   /**
