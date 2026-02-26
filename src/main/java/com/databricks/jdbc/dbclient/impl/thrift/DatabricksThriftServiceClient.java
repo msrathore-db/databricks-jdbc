@@ -7,7 +7,6 @@ import static com.databricks.jdbc.common.util.DatabricksThriftUtil.*;
 import static com.databricks.jdbc.common.util.DatabricksTypeUtil.DECIMAL;
 import static com.databricks.jdbc.common.util.DatabricksTypeUtil.getDecimalTypeString;
 import static com.databricks.jdbc.dbclient.impl.sqlexec.CommandName.LIST_FUNCTIONS;
-import static com.databricks.jdbc.dbclient.impl.sqlexec.ResultConstants.TYPE_INFO_RESULT;
 
 import com.databricks.jdbc.api.impl.*;
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
@@ -94,7 +93,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
       String catalog,
       String schema,
       Map<String, String> sessionConf)
-      throws DatabricksSQLException {
+      throws SQLException {
     LOGGER.debug(
         String.format(
             "public Session createSession(Compute cluster = {%s}, String catalog = {%s}, String schema = {%s}, Map<String, String> sessionConf = {%s})",
@@ -132,7 +131,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
   }
 
   @Override
-  public void deleteSession(ImmutableSessionInfo sessionInfo) throws DatabricksSQLException {
+  public void deleteSession(ImmutableSessionInfo sessionInfo) throws SQLException {
     LOGGER.debug(
         String.format(
             "public void deleteSession(Session session = {%s}))", sessionInfo.toString()));
@@ -306,8 +305,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
 
   @Override
   public ChunkLinkFetchResult getResultChunks(
-      StatementId statementId, long chunkIndex, long chunkStartRowOffset)
-      throws DatabricksSQLException {
+      StatementId statementId, long chunkIndex, long chunkStartRowOffset) throws SQLException {
     // Thrift uses rowOffset with FETCH_ABSOLUTE; chunkIndex is used for link metadata
     LOGGER.debug(
         "getResultChunks(statementId={}, chunkIndex={}, rowOffset={}) using Thrift client",
@@ -390,7 +388,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
   @Override
   public DatabricksResultSet listTypeInfo(IDatabricksSession session) {
     LOGGER.debug("public ResultSet getTypeInfo()");
-    return TYPE_INFO_RESULT;
+    return metadataResultSetBuilder.getTypeInfoResult();
   }
 
   @Override
@@ -728,7 +726,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
   }
 
   public TFetchResultsResp getMoreResults(IDatabricksStatementInternal parentStatement)
-      throws DatabricksSQLException {
+      throws SQLException {
     return thriftAccessor.getMoreResults(parentStatement);
   }
 
