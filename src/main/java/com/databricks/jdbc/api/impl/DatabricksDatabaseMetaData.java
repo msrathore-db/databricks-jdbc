@@ -906,7 +906,7 @@ public class DatabricksDatabaseMetaData implements DatabaseMetaData {
           .getDatabricksMetadataClient()
           .listProcedures(session, catalog, schemaPattern, procedureNamePattern);
     } catch (Exception e) {
-      LOGGER.error(e, "Unable to fetch procedures, returning empty result set {}", e);
+      LOGGER.error(e, "Unable to fetch procedures, returning empty result set");
       return metadataResultSetBuilder.getProceduresResult(new ArrayList<>());
     }
   }
@@ -928,7 +928,7 @@ public class DatabricksDatabaseMetaData implements DatabaseMetaData {
           .listProcedureColumns(
               session, catalog, schemaPattern, procedureNamePattern, columnNamePattern);
     } catch (Exception e) {
-      LOGGER.error(e, "Unable to fetch procedure columns, returning empty result set {}", e);
+      LOGGER.error(e, "Unable to fetch procedure columns, returning empty result set");
       return metadataResultSetBuilder.getProcedureColumnsResult(new ArrayList<>());
     }
   }
