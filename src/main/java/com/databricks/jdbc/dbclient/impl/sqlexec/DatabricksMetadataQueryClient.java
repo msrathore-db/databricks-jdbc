@@ -256,7 +256,8 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
     String SQL =
         CommandConstants.buildProceduresSQL(catalog, schemaNamePattern, procedureNamePattern);
     LOGGER.debug("SQL command to fetch procedures: {}", SQL);
-    return metadataResultSetBuilder.getProceduresResult(getResultSet(SQL, session));
+    return metadataResultSetBuilder.getProceduresResult(
+        getResultSet(SQL, session, MetadataOperationType.GET_PROCEDURES));
   }
 
   @Override
@@ -277,7 +278,8 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
         CommandConstants.buildProcedureColumnsSQL(
             catalog, schemaNamePattern, procedureNamePattern, columnNamePattern);
     LOGGER.debug("SQL command to fetch procedure columns: {}", SQL);
-    return metadataResultSetBuilder.getProcedureColumnsResult(getResultSet(SQL, session));
+    return metadataResultSetBuilder.getProcedureColumnsResult(
+        getResultSet(SQL, session, MetadataOperationType.GET_PROCEDURE_COLUMNS));
   }
 
   @Override

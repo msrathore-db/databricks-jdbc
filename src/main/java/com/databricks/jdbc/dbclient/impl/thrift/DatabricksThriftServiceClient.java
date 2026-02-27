@@ -631,7 +631,8 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
             new HashMap<>(),
             StatementType.METADATA,
             session,
-            null));
+            null,
+            MetadataOperationType.GET_PROCEDURES));
   }
 
   @Override
@@ -665,7 +666,8 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
             new HashMap<>(),
             StatementType.METADATA,
             session,
-            null));
+            null,
+            MetadataOperationType.GET_PROCEDURE_COLUMNS));
   }
 
   @Override

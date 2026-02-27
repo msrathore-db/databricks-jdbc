@@ -1341,12 +1341,13 @@ public class DatabricksMetadataQueryClientTest {
     when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
     DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
     when(mockClient.executeStatement(
-            sql,
-            WAREHOUSE_COMPUTE,
-            new HashMap<Integer, ImmutableSqlParameter>(),
-            StatementType.METADATA,
-            session,
-            null))
+            eq(sql),
+            eq(WAREHOUSE_COMPUTE),
+            any(),
+            eq(StatementType.METADATA),
+            eq(session),
+            any(),
+            eq(MetadataOperationType.GET_PROCEDURES)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     when(mockedResultSet.getObject("routine_catalog")).thenReturn("main");
@@ -1445,12 +1446,13 @@ public class DatabricksMetadataQueryClientTest {
     when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
     DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
     when(mockClient.executeStatement(
-            sql,
-            WAREHOUSE_COMPUTE,
-            new HashMap<Integer, ImmutableSqlParameter>(),
-            StatementType.METADATA,
-            session,
-            null))
+            eq(sql),
+            eq(WAREHOUSE_COMPUTE),
+            any(),
+            eq(StatementType.METADATA),
+            eq(session),
+            any(),
+            eq(MetadataOperationType.GET_PROCEDURE_COLUMNS)))
         .thenReturn(mockedResultSet);
     when(mockedResultSet.next()).thenReturn(true, false);
     when(mockedResultSet.getObject("specific_catalog")).thenReturn("main");
