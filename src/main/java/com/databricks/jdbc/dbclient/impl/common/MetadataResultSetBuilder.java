@@ -1205,8 +1205,11 @@ public class MetadataResultSetBuilder {
               ? getCode(stripBaseTypeName(dataType.toUpperCase()))
               : null); // DATA_TYPE
       row.add(dataType != null ? dataType.toUpperCase() : null); // TYPE_NAME
-      row.add(getProcedureColumnPrecision(resultSet, dataType)); // PRECISION
-      row.add(getProcedureColumnLength(resultSet, dataType)); // LENGTH
+      Integer numericPrecision = getIntOrNull(resultSet, "numeric_precision");
+      Integer charMaxLength = getIntOrNull(resultSet, "character_maximum_length");
+      Integer charOctetLength = getIntOrNull(resultSet, "character_octet_length");
+      row.add(numericPrecision != null ? numericPrecision : charMaxLength); // PRECISION
+      row.add(charOctetLength != null ? charOctetLength : numericPrecision); // LENGTH
       row.add(getShortOrNull(resultSet, "numeric_scale")); // SCALE
       row.add(getShortOrNull(resultSet, "numeric_precision_radix")); // RADIX
       row.add((short) procedureNullableUnknown); // NULLABLE
@@ -1240,24 +1243,6 @@ public class MetadataResultSetBuilder {
       default:
         return (short) procedureColumnUnknown;
     }
-  }
-
-  private Object getProcedureColumnPrecision(DatabricksResultSet resultSet, String dataType)
-      throws SQLException {
-    Object numericPrecision = getIntOrNull(resultSet, "numeric_precision");
-    if (numericPrecision != null) {
-      return numericPrecision;
-    }
-    return getIntOrNull(resultSet, "character_maximum_length");
-  }
-
-  private Object getProcedureColumnLength(DatabricksResultSet resultSet, String dataType)
-      throws SQLException {
-    Object charOctetLength = getIntOrNull(resultSet, "character_octet_length");
-    if (charOctetLength != null) {
-      return charOctetLength;
-    }
-    return getIntOrNull(resultSet, "numeric_precision");
   }
 
   private static String getStringOrNull(DatabricksResultSet resultSet, String columnName)
