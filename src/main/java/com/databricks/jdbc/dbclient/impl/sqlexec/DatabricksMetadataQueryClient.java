@@ -11,6 +11,7 @@ import com.databricks.jdbc.common.util.JdbcThreadUtils;
 import com.databricks.jdbc.common.util.WildcardUtil;
 import com.databricks.jdbc.dbclient.IDatabricksClient;
 import com.databricks.jdbc.dbclient.IDatabricksMetadataClient;
+import com.databricks.jdbc.dbclient.impl.common.CommandConstants;
 import com.databricks.jdbc.dbclient.impl.common.MetadataResultSetBuilder;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
@@ -237,6 +238,46 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
     LOGGER.debug("SQL command to fetch functions: {}", SQL);
     return metadataResultSetBuilder.getFunctionsResult(
         getResultSet(SQL, session, MetadataOperationType.GET_FUNCTIONS), catalog);
+  }
+
+  @Override
+  public DatabricksResultSet listProcedures(
+      IDatabricksSession session,
+      String catalog,
+      String schemaNamePattern,
+      String procedureNamePattern)
+      throws SQLException {
+    String currentCatalog = isMultipleCatalogSupportDisabled() ? session.getCurrentCatalog() : null;
+    if (!metadataResultSetBuilder.shouldAllowCatalogAccess(catalog, currentCatalog, session)) {
+      return metadataResultSetBuilder.getProceduresResult(new ArrayList<>());
+    }
+
+    catalog = autoFillCatalog(catalog, currentCatalog);
+    String SQL =
+        CommandConstants.buildProceduresSQL(catalog, schemaNamePattern, procedureNamePattern);
+    LOGGER.debug("SQL command to fetch procedures: {}", SQL);
+    return metadataResultSetBuilder.getProceduresResult(getResultSet(SQL, session));
+  }
+
+  @Override
+  public DatabricksResultSet listProcedureColumns(
+      IDatabricksSession session,
+      String catalog,
+      String schemaNamePattern,
+      String procedureNamePattern,
+      String columnNamePattern)
+      throws SQLException {
+    String currentCatalog = isMultipleCatalogSupportDisabled() ? session.getCurrentCatalog() : null;
+    if (!metadataResultSetBuilder.shouldAllowCatalogAccess(catalog, currentCatalog, session)) {
+      return metadataResultSetBuilder.getProcedureColumnsResult(new ArrayList<>());
+    }
+
+    catalog = autoFillCatalog(catalog, currentCatalog);
+    String SQL =
+        CommandConstants.buildProcedureColumnsSQL(
+            catalog, schemaNamePattern, procedureNamePattern, columnNamePattern);
+    LOGGER.debug("SQL command to fetch procedure columns: {}", SQL);
+    return metadataResultSetBuilder.getProcedureColumnsResult(getResultSet(SQL, session));
   }
 
   @Override

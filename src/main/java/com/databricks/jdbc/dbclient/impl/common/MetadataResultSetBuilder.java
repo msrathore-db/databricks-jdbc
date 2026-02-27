@@ -510,6 +510,44 @@ public class MetadataResultSetBuilder {
         CommandName.LIST_FUNCTIONS);
   }
 
+  public DatabricksResultSet getProceduresResult(DatabricksResultSet resultSet)
+      throws SQLException {
+    List<List<Object>> rows = getRowsForProcedures(resultSet);
+    return buildResultSet(
+        PROCEDURES_COLUMNS,
+        rows,
+        GET_PROCEDURES_STATEMENT_ID,
+        resultSet.getMetaData(),
+        CommandName.LIST_PROCEDURES);
+  }
+
+  public DatabricksResultSet getProceduresResult(List<List<Object>> rows) {
+    return buildResultSet(
+        PROCEDURES_COLUMNS,
+        rows != null ? rows : new ArrayList<>(),
+        GET_PROCEDURES_STATEMENT_ID,
+        CommandName.LIST_PROCEDURES);
+  }
+
+  public DatabricksResultSet getProcedureColumnsResult(DatabricksResultSet resultSet)
+      throws SQLException {
+    List<List<Object>> rows = getRowsForProcedureColumns(resultSet);
+    return buildResultSet(
+        PROCEDURE_COLUMNS_COLUMNS,
+        rows,
+        GET_PROCEDURE_COLUMNS_STATEMENT_ID,
+        resultSet.getMetaData(),
+        CommandName.LIST_PROCEDURE_COLUMNS);
+  }
+
+  public DatabricksResultSet getProcedureColumnsResult(List<List<Object>> rows) {
+    return buildResultSet(
+        PROCEDURE_COLUMNS_COLUMNS,
+        rows != null ? rows : new ArrayList<>(),
+        GET_PROCEDURE_COLUMNS_STATEMENT_ID,
+        CommandName.LIST_PROCEDURE_COLUMNS);
+  }
+
   public DatabricksResultSet getColumnsResult(DatabricksResultSet resultSet) throws SQLException {
     List<List<Object>> rows = getRows(resultSet, COLUMN_COLUMNS, defaultAdapter);
     return buildResultSet(
@@ -1127,6 +1165,133 @@ public class MetadataResultSetBuilder {
       rows.add(row);
     }
     return rows;
+  }
+
+  private List<List<Object>> getRowsForProcedures(DatabricksResultSet resultSet)
+      throws SQLException {
+    List<List<Object>> rows = new ArrayList<>();
+    while (resultSet.next()) {
+      List<Object> row = new ArrayList<>();
+      row.add(getStringOrNull(resultSet, "routine_catalog")); // PROCEDURE_CAT
+      row.add(getStringOrNull(resultSet, "routine_schema")); // PROCEDURE_SCHEM
+      row.add(getStringOrNull(resultSet, "routine_name")); // PROCEDURE_NAME
+      row.add(null); // NUM_INPUT_PARAMS (reserved)
+      row.add(null); // NUM_OUTPUT_PARAMS (reserved)
+      row.add(null); // NUM_RESULT_SETS (reserved)
+      row.add(getStringOrNull(resultSet, "comment")); // REMARKS
+      row.add((short) procedureNoResult); // PROCEDURE_TYPE
+      row.add(getStringOrNull(resultSet, "specific_name")); // SPECIFIC_NAME
+      rows.add(row);
+    }
+    return rows;
+  }
+
+  private List<List<Object>> getRowsForProcedureColumns(DatabricksResultSet resultSet)
+      throws SQLException {
+    List<List<Object>> rows = new ArrayList<>();
+    while (resultSet.next()) {
+      String dataType = getStringOrNull(resultSet, "data_type");
+      String parameterMode = getStringOrNull(resultSet, "parameter_mode");
+      String isResult = getStringOrNull(resultSet, "is_result");
+
+      List<Object> row = new ArrayList<>();
+      row.add(getStringOrNull(resultSet, "specific_catalog")); // PROCEDURE_CAT
+      row.add(getStringOrNull(resultSet, "specific_schema")); // PROCEDURE_SCHEM
+      row.add(getStringOrNull(resultSet, "specific_name")); // PROCEDURE_NAME
+      row.add(getStringOrNull(resultSet, "parameter_name")); // COLUMN_NAME
+      row.add(mapParameterModeToColumnType(parameterMode, isResult)); // COLUMN_TYPE
+      row.add(
+          dataType != null
+              ? getCode(stripBaseTypeName(dataType.toUpperCase()))
+              : null); // DATA_TYPE
+      row.add(dataType != null ? dataType.toUpperCase() : null); // TYPE_NAME
+      row.add(getProcedureColumnPrecision(resultSet, dataType)); // PRECISION
+      row.add(getProcedureColumnLength(resultSet, dataType)); // LENGTH
+      row.add(getShortOrNull(resultSet, "numeric_scale")); // SCALE
+      row.add(getShortOrNull(resultSet, "numeric_precision_radix")); // RADIX
+      row.add((short) procedureNullableUnknown); // NULLABLE
+      row.add(getStringOrNull(resultSet, "comment")); // REMARKS
+      row.add(getStringOrNull(resultSet, "parameter_default")); // COLUMN_DEF
+      row.add(null); // SQL_DATA_TYPE (reserved)
+      row.add(null); // SQL_DATETIME_SUB (reserved)
+      row.add(getIntOrNull(resultSet, "character_octet_length")); // CHAR_OCTET_LENGTH
+      row.add(getIntOrNull(resultSet, "ordinal_position")); // ORDINAL_POSITION
+      row.add(""); // IS_NULLABLE (unknown)
+      row.add(getStringOrNull(resultSet, "specific_name")); // SPECIFIC_NAME
+      rows.add(row);
+    }
+    return rows;
+  }
+
+  private static short mapParameterModeToColumnType(String parameterMode, String isResult) {
+    if ("YES".equalsIgnoreCase(isResult)) {
+      return (short) procedureColumnReturn;
+    }
+    if (parameterMode == null) {
+      return (short) procedureColumnUnknown;
+    }
+    switch (parameterMode.toUpperCase()) {
+      case "IN":
+        return (short) procedureColumnIn;
+      case "INOUT":
+        return (short) procedureColumnInOut;
+      case "OUT":
+        return (short) procedureColumnOut;
+      default:
+        return (short) procedureColumnUnknown;
+    }
+  }
+
+  private Object getProcedureColumnPrecision(DatabricksResultSet resultSet, String dataType)
+      throws SQLException {
+    Object numericPrecision = getIntOrNull(resultSet, "numeric_precision");
+    if (numericPrecision != null) {
+      return numericPrecision;
+    }
+    return getIntOrNull(resultSet, "character_maximum_length");
+  }
+
+  private Object getProcedureColumnLength(DatabricksResultSet resultSet, String dataType)
+      throws SQLException {
+    Object charOctetLength = getIntOrNull(resultSet, "character_octet_length");
+    if (charOctetLength != null) {
+      return charOctetLength;
+    }
+    return getIntOrNull(resultSet, "numeric_precision");
+  }
+
+  private static String getStringOrNull(DatabricksResultSet resultSet, String columnName)
+      throws SQLException {
+    try {
+      Object val = resultSet.getObject(columnName);
+      return val != null ? val.toString() : null;
+    } catch (SQLException e) {
+      return null;
+    }
+  }
+
+  private static Integer getIntOrNull(DatabricksResultSet resultSet, String columnName)
+      throws SQLException {
+    try {
+      Object val = resultSet.getObject(columnName);
+      if (val == null) return null;
+      if (val instanceof Number) return ((Number) val).intValue();
+      return Integer.parseInt(val.toString());
+    } catch (SQLException | NumberFormatException e) {
+      return null;
+    }
+  }
+
+  private static Short getShortOrNull(DatabricksResultSet resultSet, String columnName)
+      throws SQLException {
+    try {
+      Object val = resultSet.getObject(columnName);
+      if (val == null) return null;
+      if (val instanceof Number) return ((Number) val).shortValue();
+      return Short.parseShort(val.toString());
+    } catch (SQLException | NumberFormatException e) {
+      return null;
+    }
   }
 
   private List<List<Object>> getRowsForSchemas(

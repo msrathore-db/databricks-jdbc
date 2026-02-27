@@ -6,6 +6,8 @@ public class CommandConstants {
   public static final String GET_CATALOGS_STATEMENT_ID = "getcatalogs-metadata";
   public static final String GET_TABLE_TYPE_STATEMENT_ID = "gettabletype-metadata";
   public static final String GET_FUNCTIONS_STATEMENT_ID = "getfunctions-metadata";
+  public static final String GET_PROCEDURES_STATEMENT_ID = "getprocedures-metadata";
+  public static final String GET_PROCEDURE_COLUMNS_STATEMENT_ID = "getprocedurecolumns-metadata";
   public static final String SHOW_CATALOGS_SQL = "SHOW CATALOGS";
   public static final String SHOW_TABLE_TYPES_SQL = "SHOW TABLE_TYPES";
   public static final String IN_CATALOG_SQL = " IN CATALOG `%s`";
@@ -26,4 +28,77 @@ public class CommandConstants {
       "SHOW KEYS" + IN_CATALOG_SQL + IN_ABSOLUTE_SCHEMA_SQL + IN_ABSOLUTE_TABLE_SQL;
   public static final String SHOW_FOREIGN_KEYS_SQL =
       "SHOW FOREIGN KEYS" + IN_CATALOG_SQL + IN_ABSOLUTE_SCHEMA_SQL + IN_ABSOLUTE_TABLE_SQL;
+
+  /**
+   * Builds a SQL query to fetch stored procedures from information_schema.ROUTINES.
+   *
+   * @param catalog the catalog name; null means use system catalog
+   * @param schemaPattern schema LIKE pattern; null means no filter
+   * @param procedureNamePattern procedure name LIKE pattern; null means no filter
+   */
+  public static String buildProceduresSQL(
+      String catalog, String schemaPattern, String procedureNamePattern) {
+    String catalogPrefix = getCatalogPrefix(catalog);
+    StringBuilder sql = new StringBuilder();
+    sql.append(
+        String.format(
+            "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
+                + " FROM %s.information_schema.ROUTINES"
+                + " WHERE routine_type = 'PROCEDURE'",
+            catalogPrefix));
+    if (schemaPattern != null) {
+      sql.append(String.format(" AND routine_schema LIKE '%s'", schemaPattern));
+    }
+    if (procedureNamePattern != null) {
+      sql.append(String.format(" AND routine_name LIKE '%s'", procedureNamePattern));
+    }
+    sql.append(" ORDER BY routine_catalog, routine_schema, routine_name");
+    return sql.toString();
+  }
+
+  /**
+   * Builds a SQL query to fetch stored procedure columns/parameters from
+   * information_schema.parameters joined with ROUTINES.
+   *
+   * @param catalog the catalog name; null means use system catalog
+   * @param schemaPattern schema LIKE pattern; null means no filter
+   * @param procedureNamePattern procedure name LIKE pattern; null means no filter
+   * @param columnNamePattern column/parameter name LIKE pattern; null means no filter
+   */
+  public static String buildProcedureColumnsSQL(
+      String catalog, String schemaPattern, String procedureNamePattern, String columnNamePattern) {
+    String catalogPrefix = getCatalogPrefix(catalog);
+    StringBuilder sql = new StringBuilder();
+    sql.append(
+        String.format(
+            "SELECT p.specific_catalog, p.specific_schema, p.specific_name,"
+                + " p.parameter_name, p.parameter_mode, p.is_result,"
+                + " p.data_type, p.full_data_type,"
+                + " p.numeric_precision, p.numeric_precision_radix, p.numeric_scale,"
+                + " p.character_maximum_length, p.character_octet_length,"
+                + " p.ordinal_position, p.parameter_default, p.comment"
+                + " FROM %s.information_schema.parameters p"
+                + " JOIN %s.information_schema.ROUTINES r"
+                + " ON p.specific_catalog = r.specific_catalog"
+                + " AND p.specific_schema = r.specific_schema"
+                + " AND p.specific_name = r.specific_name"
+                + " WHERE r.routine_type = 'PROCEDURE'",
+            catalogPrefix, catalogPrefix));
+    if (schemaPattern != null) {
+      sql.append(String.format(" AND p.specific_schema LIKE '%s'", schemaPattern));
+    }
+    if (procedureNamePattern != null) {
+      sql.append(String.format(" AND p.specific_name LIKE '%s'", procedureNamePattern));
+    }
+    if (columnNamePattern != null) {
+      sql.append(String.format(" AND p.parameter_name LIKE '%s'", columnNamePattern));
+    }
+    sql.append(
+        " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position");
+    return sql.toString();
+  }
+
+  private static String getCatalogPrefix(String catalog) {
+    return (catalog == null) ? "system" : String.format("`%s`", catalog);
+  }
 }
