@@ -54,10 +54,10 @@ public class CommandConstants {
     sql.append(" FROM ").append(routinesTable);
     sql.append(" WHERE ").append(PROCEDURE_TYPE_FILTER);
     if (schemaPattern != null) {
-      sql.append(String.format(" AND routine_schema LIKE '%s'", schemaPattern));
+      sql.append(" AND routine_schema LIKE '").append(schemaPattern).append("'");
     }
     if (procedureNamePattern != null) {
-      sql.append(String.format(" AND routine_name LIKE '%s'", procedureNamePattern));
+      sql.append(" AND routine_name LIKE '").append(procedureNamePattern).append("'");
     }
     sql.append(" ORDER BY routine_catalog, routine_schema, routine_name");
     return sql.toString();
@@ -78,13 +78,13 @@ public class CommandConstants {
     sql.append(" AND p.specific_name = r.specific_name");
     sql.append(" WHERE r.").append(PROCEDURE_TYPE_FILTER);
     if (schemaPattern != null) {
-      sql.append(String.format(" AND p.specific_schema LIKE '%s'", schemaPattern));
+      sql.append(" AND p.specific_schema LIKE '").append(schemaPattern).append("'");
     }
     if (procedureNamePattern != null) {
-      sql.append(String.format(" AND p.specific_name LIKE '%s'", procedureNamePattern));
+      sql.append(" AND p.specific_name LIKE '").append(procedureNamePattern).append("'");
     }
     if (columnNamePattern != null) {
-      sql.append(String.format(" AND p.parameter_name LIKE '%s'", columnNamePattern));
+      sql.append(" AND p.parameter_name LIKE '").append(columnNamePattern).append("'");
     }
     sql.append(
         " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position");
@@ -92,6 +92,6 @@ public class CommandConstants {
   }
 
   private static String getCatalogPrefix(String catalog) {
-    return (catalog == null) ? "system" : String.format("`%s`", catalog);
+    return (catalog == null) ? "system" : "`" + catalog + "`";
   }
 }
