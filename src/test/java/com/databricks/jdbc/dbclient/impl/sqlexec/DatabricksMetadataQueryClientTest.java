@@ -1286,4 +1286,197 @@ public class DatabricksMetadataQueryClientTest {
     // Verify getCurrentCatalog was NEVER called when support is enabled
     verify(session, never()).getCurrentCatalog();
   }
+
+  // ==================== listProcedures tests ====================
+
+  private static Stream<Arguments> listProceduresTestParams() {
+    return Stream.of(
+        Arguments.of(
+            "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
+                + " FROM `catalog1`.information_schema.routines"
+                + " WHERE routine_type = 'PROCEDURE'"
+                + " AND routine_schema LIKE 'testSchema'"
+                + " AND routine_name LIKE 'procedurePattern'"
+                + " ORDER BY routine_catalog, routine_schema, routine_name",
+            TEST_CATALOG,
+            TEST_SCHEMA,
+            TEST_PROCEDURE_PATTERN,
+            "test for get procedures with catalog, schema and name pattern"),
+        Arguments.of(
+            "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
+                + " FROM `catalog1`.information_schema.routines"
+                + " WHERE routine_type = 'PROCEDURE'"
+                + " AND routine_name LIKE 'procedurePattern'"
+                + " ORDER BY routine_catalog, routine_schema, routine_name",
+            TEST_CATALOG,
+            null,
+            TEST_PROCEDURE_PATTERN,
+            "test for get procedures without schema"),
+        Arguments.of(
+            "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
+                + " FROM `catalog1`.information_schema.routines"
+                + " WHERE routine_type = 'PROCEDURE'"
+                + " AND routine_schema LIKE 'testSchema'"
+                + " ORDER BY routine_catalog, routine_schema, routine_name",
+            TEST_CATALOG,
+            TEST_SCHEMA,
+            null,
+            "test for get procedures without name pattern"),
+        Arguments.of(
+            "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
+                + " FROM system.information_schema.routines"
+                + " WHERE routine_type = 'PROCEDURE'"
+                + " ORDER BY routine_catalog, routine_schema, routine_name",
+            null,
+            null,
+            null,
+            "test for get procedures with null catalog"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("listProceduresTestParams")
+  void testListProcedures(
+      String sql, String catalog, String schema, String procedurePattern, String description)
+      throws SQLException {
+    when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
+    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+    when(mockClient.executeStatement(
+            sql,
+            WAREHOUSE_COMPUTE,
+            new HashMap<Integer, ImmutableSqlParameter>(),
+            StatementType.METADATA,
+            session,
+            null))
+        .thenReturn(mockedResultSet);
+    when(mockedResultSet.next()).thenReturn(true, false);
+    when(mockedResultSet.getObject("routine_catalog")).thenReturn("main");
+    when(mockedResultSet.getObject("routine_schema")).thenReturn("default");
+    when(mockedResultSet.getObject("routine_name")).thenReturn("test_proc");
+    when(mockedResultSet.getObject("comment")).thenReturn(null);
+    when(mockedResultSet.getObject("specific_name")).thenReturn("test_proc");
+    doReturn(5).when(mockedMetaData).getColumnCount();
+    when(mockedResultSet.getMetaData()).thenReturn(mockedMetaData);
+    DatabricksResultSet actualResult =
+        metadataClient.listProcedures(session, catalog, schema, procedurePattern);
+    assertEquals(
+        StatementState.SUCCEEDED, actualResult.getStatementStatus().getState(), description);
+    assertEquals(GET_PROCEDURES_STATEMENT_ID, actualResult.getStatementId(), description);
+    assertEquals(
+        1, ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows(), description);
+  }
+
+  // ==================== listProcedureColumns tests ====================
+
+  private static Stream<Arguments> listProcedureColumnsTestParams() {
+    return Stream.of(
+        Arguments.of(
+            "SELECT p.specific_catalog, p.specific_schema, p.specific_name,"
+                + " p.parameter_name, p.parameter_mode, p.is_result,"
+                + " p.data_type, p.full_data_type,"
+                + " p.numeric_precision, p.numeric_precision_radix, p.numeric_scale,"
+                + " p.character_maximum_length, p.character_octet_length,"
+                + " p.ordinal_position, p.parameter_default, p.comment"
+                + " FROM `catalog1`.information_schema.parameters p"
+                + " JOIN `catalog1`.information_schema.routines r"
+                + " ON p.specific_catalog = r.specific_catalog"
+                + " AND p.specific_schema = r.specific_schema"
+                + " AND p.specific_name = r.specific_name"
+                + " WHERE r.routine_type = 'PROCEDURE'"
+                + " AND p.specific_schema LIKE 'testSchema'"
+                + " AND p.specific_name LIKE 'procedurePattern'"
+                + " AND p.parameter_name LIKE 'columnPattern'"
+                + " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position",
+            TEST_CATALOG,
+            TEST_SCHEMA,
+            TEST_PROCEDURE_PATTERN,
+            TEST_COLUMN_PATTERN,
+            "test for get procedure columns with all filters"),
+        Arguments.of(
+            "SELECT p.specific_catalog, p.specific_schema, p.specific_name,"
+                + " p.parameter_name, p.parameter_mode, p.is_result,"
+                + " p.data_type, p.full_data_type,"
+                + " p.numeric_precision, p.numeric_precision_radix, p.numeric_scale,"
+                + " p.character_maximum_length, p.character_octet_length,"
+                + " p.ordinal_position, p.parameter_default, p.comment"
+                + " FROM `catalog1`.information_schema.parameters p"
+                + " JOIN `catalog1`.information_schema.routines r"
+                + " ON p.specific_catalog = r.specific_catalog"
+                + " AND p.specific_schema = r.specific_schema"
+                + " AND p.specific_name = r.specific_name"
+                + " WHERE r.routine_type = 'PROCEDURE'"
+                + " AND p.specific_name LIKE 'procedurePattern'"
+                + " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position",
+            TEST_CATALOG,
+            null,
+            TEST_PROCEDURE_PATTERN,
+            null,
+            "test for get procedure columns without schema and column pattern"),
+        Arguments.of(
+            "SELECT p.specific_catalog, p.specific_schema, p.specific_name,"
+                + " p.parameter_name, p.parameter_mode, p.is_result,"
+                + " p.data_type, p.full_data_type,"
+                + " p.numeric_precision, p.numeric_precision_radix, p.numeric_scale,"
+                + " p.character_maximum_length, p.character_octet_length,"
+                + " p.ordinal_position, p.parameter_default, p.comment"
+                + " FROM system.information_schema.parameters p"
+                + " JOIN system.information_schema.routines r"
+                + " ON p.specific_catalog = r.specific_catalog"
+                + " AND p.specific_schema = r.specific_schema"
+                + " AND p.specific_name = r.specific_name"
+                + " WHERE r.routine_type = 'PROCEDURE'"
+                + " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position",
+            null,
+            null,
+            null,
+            null,
+            "test for get procedure columns with null catalog and no filters"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("listProcedureColumnsTestParams")
+  void testListProcedureColumns(
+      String sql,
+      String catalog,
+      String schema,
+      String procedurePattern,
+      String columnPattern,
+      String description)
+      throws SQLException {
+    when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
+    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+    when(mockClient.executeStatement(
+            sql,
+            WAREHOUSE_COMPUTE,
+            new HashMap<Integer, ImmutableSqlParameter>(),
+            StatementType.METADATA,
+            session,
+            null))
+        .thenReturn(mockedResultSet);
+    when(mockedResultSet.next()).thenReturn(true, false);
+    when(mockedResultSet.getObject("specific_catalog")).thenReturn("main");
+    when(mockedResultSet.getObject("specific_schema")).thenReturn("default");
+    when(mockedResultSet.getObject("specific_name")).thenReturn("test_proc");
+    when(mockedResultSet.getObject("parameter_name")).thenReturn("x");
+    when(mockedResultSet.getObject("parameter_mode")).thenReturn("IN");
+    when(mockedResultSet.getObject("is_result")).thenReturn("NO");
+    when(mockedResultSet.getObject("data_type")).thenReturn("INT");
+    when(mockedResultSet.getObject("numeric_precision")).thenReturn(null);
+    when(mockedResultSet.getObject("numeric_precision_radix")).thenReturn(2);
+    when(mockedResultSet.getObject("numeric_scale")).thenReturn(null);
+    when(mockedResultSet.getObject("character_maximum_length")).thenReturn(null);
+    when(mockedResultSet.getObject("character_octet_length")).thenReturn(null);
+    when(mockedResultSet.getObject("ordinal_position")).thenReturn(0);
+    when(mockedResultSet.getObject("parameter_default")).thenReturn(null);
+    when(mockedResultSet.getObject("comment")).thenReturn(null);
+    doReturn(16).when(mockedMetaData).getColumnCount();
+    when(mockedResultSet.getMetaData()).thenReturn(mockedMetaData);
+    DatabricksResultSet actualResult =
+        metadataClient.listProcedureColumns(
+            session, catalog, schema, procedurePattern, columnPattern);
+    assertEquals(
+        StatementState.SUCCEEDED, actualResult.getStatementStatus().getState(), description);
+    assertEquals(GET_PROCEDURE_COLUMNS_STATEMENT_ID, actualResult.getStatementId(), description);
+    assertEquals(
+        1, ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows(), description);
+  }
 }

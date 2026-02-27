@@ -29,7 +29,7 @@ public class CommandConstants {
   public static final String SHOW_FOREIGN_KEYS_SQL =
       "SHOW FOREIGN KEYS" + IN_CATALOG_SQL + IN_ABSOLUTE_SCHEMA_SQL + IN_ABSOLUTE_TABLE_SQL;
 
-  private static final String INFORMATION_SCHEMA_ROUTINES = "information_schema.ROUTINES";
+  private static final String INFORMATION_SCHEMA_ROUTINES = "information_schema.routines";
   private static final String INFORMATION_SCHEMA_PARAMETERS = "information_schema.parameters";
   private static final String PROCEDURE_TYPE_FILTER = "routine_type = 'PROCEDURE'";
 
