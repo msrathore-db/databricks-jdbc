@@ -48,6 +48,11 @@ public class CommandConstants {
           + " p.character_maximum_length, p.character_octet_length,"
           + " p.ordinal_position, p.parameter_default, p.comment";
 
+  /**
+   * Builds a parameterized SQL query to fetch procedures from information_schema.routines. LIKE
+   * clause values use ? placeholders with parameters populated in the provided map for server-side
+   * binding.
+   */
   public static String buildProceduresSQL(
       String catalog,
       String schemaPattern,
@@ -75,6 +80,11 @@ public class CommandConstants {
     return sql.toString();
   }
 
+  /**
+   * Builds a parameterized SQL query to fetch procedure columns from information_schema.parameters.
+   * LIKE clause values use ? placeholders with parameters populated in the provided map for
+   * server-side binding.
+   */
   public static String buildProcedureColumnsSQL(
       String catalog,
       String schemaPattern,
