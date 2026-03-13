@@ -622,13 +622,15 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
       return metadataResultSetBuilder.getProceduresResult(new ArrayList<>());
     }
 
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
     String sql =
-        CommandConstants.buildProceduresSQL(catalog, schemaNamePattern, procedureNamePattern);
+        CommandConstants.buildProceduresSQL(
+            catalog, schemaNamePattern, procedureNamePattern, params);
     return metadataResultSetBuilder.getProceduresResult(
         executeStatement(
             sql,
             session.getComputeResource(),
-            new HashMap<>(),
+            params,
             StatementType.METADATA,
             session,
             null,
@@ -656,14 +658,15 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
       return metadataResultSetBuilder.getProcedureColumnsResult(new ArrayList<>());
     }
 
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
     String sql =
         CommandConstants.buildProcedureColumnsSQL(
-            catalog, schemaNamePattern, procedureNamePattern, columnNamePattern);
+            catalog, schemaNamePattern, procedureNamePattern, columnNamePattern, params);
     return metadataResultSetBuilder.getProcedureColumnsResult(
         executeStatement(
             sql,
             session.getComputeResource(),
-            new HashMap<>(),
+            params,
             StatementType.METADATA,
             session,
             null,

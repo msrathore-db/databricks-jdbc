@@ -1,5 +1,9 @@
 package com.databricks.jdbc.dbclient.impl.common;
 
+import com.databricks.jdbc.api.impl.ImmutableSqlParameter;
+import com.databricks.jdbc.model.core.ColumnInfoTypeName;
+import java.util.Map;
+
 public class CommandConstants {
   public static final String METADATA_STATEMENT_ID = "metadata-statement";
   public static final String GET_TABLES_STATEMENT_ID = "gettables-metadata";
@@ -45,29 +49,42 @@ public class CommandConstants {
           + " p.ordinal_position, p.parameter_default, p.comment";
 
   public static String buildProceduresSQL(
-      String catalog, String schemaPattern, String procedureNamePattern) {
+      String catalog,
+      String schemaPattern,
+      String procedureNamePattern,
+      Map<Integer, ImmutableSqlParameter> params) {
     String catalogPrefix = getCatalogPrefix(catalog);
     String routinesTable = catalogPrefix + "." + INFORMATION_SCHEMA_ROUTINES;
+    int paramIndex = 1;
 
     StringBuilder sql = new StringBuilder();
     sql.append("SELECT ").append(ROUTINES_SELECT_COLUMNS);
     sql.append(" FROM ").append(routinesTable);
     sql.append(" WHERE ").append(PROCEDURE_TYPE_FILTER);
     if (schemaPattern != null) {
-      sql.append(" AND routine_schema LIKE '").append(schemaPattern).append("'");
+      sql.append(" AND routine_schema LIKE ?");
+      params.put(paramIndex, buildStringParam(paramIndex, schemaPattern));
+      paramIndex++;
     }
     if (procedureNamePattern != null) {
-      sql.append(" AND routine_name LIKE '").append(procedureNamePattern).append("'");
+      sql.append(" AND routine_name LIKE ?");
+      params.put(paramIndex, buildStringParam(paramIndex, procedureNamePattern));
+      paramIndex++;
     }
     sql.append(" ORDER BY routine_catalog, routine_schema, routine_name");
     return sql.toString();
   }
 
   public static String buildProcedureColumnsSQL(
-      String catalog, String schemaPattern, String procedureNamePattern, String columnNamePattern) {
+      String catalog,
+      String schemaPattern,
+      String procedureNamePattern,
+      String columnNamePattern,
+      Map<Integer, ImmutableSqlParameter> params) {
     String catalogPrefix = getCatalogPrefix(catalog);
     String parametersTable = catalogPrefix + "." + INFORMATION_SCHEMA_PARAMETERS + " p";
     String routinesTable = catalogPrefix + "." + INFORMATION_SCHEMA_ROUTINES + " r";
+    int paramIndex = 1;
 
     StringBuilder sql = new StringBuilder();
     sql.append("SELECT ").append(PARAMETERS_SELECT_COLUMNS);
@@ -78,17 +95,31 @@ public class CommandConstants {
     sql.append(" AND p.specific_name = r.specific_name");
     sql.append(" WHERE r.").append(PROCEDURE_TYPE_FILTER);
     if (schemaPattern != null) {
-      sql.append(" AND p.specific_schema LIKE '").append(schemaPattern).append("'");
+      sql.append(" AND p.specific_schema LIKE ?");
+      params.put(paramIndex, buildStringParam(paramIndex, schemaPattern));
+      paramIndex++;
     }
     if (procedureNamePattern != null) {
-      sql.append(" AND p.specific_name LIKE '").append(procedureNamePattern).append("'");
+      sql.append(" AND p.specific_name LIKE ?");
+      params.put(paramIndex, buildStringParam(paramIndex, procedureNamePattern));
+      paramIndex++;
     }
     if (columnNamePattern != null) {
-      sql.append(" AND p.parameter_name LIKE '").append(columnNamePattern).append("'");
+      sql.append(" AND p.parameter_name LIKE ?");
+      params.put(paramIndex, buildStringParam(paramIndex, columnNamePattern));
+      paramIndex++;
     }
     sql.append(
         " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position");
     return sql.toString();
+  }
+
+  private static ImmutableSqlParameter buildStringParam(int index, String value) {
+    return ImmutableSqlParameter.builder()
+        .type(ColumnInfoTypeName.STRING)
+        .value(value)
+        .cardinal(index)
+        .build();
   }
 
   private static String getCatalogPrefix(String catalog) {

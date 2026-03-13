@@ -1295,8 +1295,8 @@ public class DatabricksMetadataQueryClientTest {
             "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
                 + " FROM `catalog1`.information_schema.routines"
                 + " WHERE routine_type = 'PROCEDURE'"
-                + " AND routine_schema LIKE 'testSchema'"
-                + " AND routine_name LIKE 'procedurePattern'"
+                + " AND routine_schema LIKE ?"
+                + " AND routine_name LIKE ?"
                 + " ORDER BY routine_catalog, routine_schema, routine_name",
             TEST_CATALOG,
             TEST_SCHEMA,
@@ -1306,7 +1306,7 @@ public class DatabricksMetadataQueryClientTest {
             "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
                 + " FROM `catalog1`.information_schema.routines"
                 + " WHERE routine_type = 'PROCEDURE'"
-                + " AND routine_name LIKE 'procedurePattern'"
+                + " AND routine_name LIKE ?"
                 + " ORDER BY routine_catalog, routine_schema, routine_name",
             TEST_CATALOG,
             null,
@@ -1316,7 +1316,7 @@ public class DatabricksMetadataQueryClientTest {
             "SELECT routine_catalog, routine_schema, routine_name, comment, specific_name"
                 + " FROM `catalog1`.information_schema.routines"
                 + " WHERE routine_type = 'PROCEDURE'"
-                + " AND routine_schema LIKE 'testSchema'"
+                + " AND routine_schema LIKE ?"
                 + " ORDER BY routine_catalog, routine_schema, routine_name",
             TEST_CATALOG,
             TEST_SCHEMA,
@@ -1339,7 +1339,7 @@ public class DatabricksMetadataQueryClientTest {
       String sql, String catalog, String schema, String procedurePattern, String description)
       throws SQLException {
     when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
-    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
     when(mockClient.executeStatement(
             eq(sql),
             eq(WAREHOUSE_COMPUTE),
@@ -1383,9 +1383,9 @@ public class DatabricksMetadataQueryClientTest {
                 + " AND p.specific_schema = r.specific_schema"
                 + " AND p.specific_name = r.specific_name"
                 + " WHERE r.routine_type = 'PROCEDURE'"
-                + " AND p.specific_schema LIKE 'testSchema'"
-                + " AND p.specific_name LIKE 'procedurePattern'"
-                + " AND p.parameter_name LIKE 'columnPattern'"
+                + " AND p.specific_schema LIKE ?"
+                + " AND p.specific_name LIKE ?"
+                + " AND p.parameter_name LIKE ?"
                 + " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position",
             TEST_CATALOG,
             TEST_SCHEMA,
@@ -1405,7 +1405,7 @@ public class DatabricksMetadataQueryClientTest {
                 + " AND p.specific_schema = r.specific_schema"
                 + " AND p.specific_name = r.specific_name"
                 + " WHERE r.routine_type = 'PROCEDURE'"
-                + " AND p.specific_name LIKE 'procedurePattern'"
+                + " AND p.specific_name LIKE ?"
                 + " ORDER BY p.specific_catalog, p.specific_schema, p.specific_name, p.ordinal_position",
             TEST_CATALOG,
             null,
@@ -1444,7 +1444,7 @@ public class DatabricksMetadataQueryClientTest {
       String description)
       throws SQLException {
     when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
-    DatabricksMetadataSdkClient metadataClient = new DatabricksMetadataSdkClient(mockClient);
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
     when(mockClient.executeStatement(
             eq(sql),
             eq(WAREHOUSE_COMPUTE),

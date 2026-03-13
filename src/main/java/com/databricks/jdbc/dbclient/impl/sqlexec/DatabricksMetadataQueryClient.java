@@ -4,6 +4,7 @@ import static com.databricks.jdbc.common.MetadataResultConstants.*;
 import static com.databricks.jdbc.dbclient.impl.common.CommandConstants.METADATA_STATEMENT_ID;
 
 import com.databricks.jdbc.api.impl.DatabricksResultSet;
+import com.databricks.jdbc.api.impl.ImmutableSqlParameter;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.common.MetadataOperationType;
 import com.databricks.jdbc.common.StatementType;
@@ -21,6 +22,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -253,11 +255,13 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
     }
 
     catalog = autoFillCatalog(catalog, currentCatalog);
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
     String SQL =
-        CommandConstants.buildProceduresSQL(catalog, schemaNamePattern, procedureNamePattern);
+        CommandConstants.buildProceduresSQL(
+            catalog, schemaNamePattern, procedureNamePattern, params);
     LOGGER.debug("SQL command to fetch procedures: {}", SQL);
     return metadataResultSetBuilder.getProceduresResult(
-        getResultSet(SQL, session, MetadataOperationType.GET_PROCEDURES));
+        getResultSet(SQL, params, session, MetadataOperationType.GET_PROCEDURES));
   }
 
   @Override
@@ -274,12 +278,13 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
     }
 
     catalog = autoFillCatalog(catalog, currentCatalog);
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
     String SQL =
         CommandConstants.buildProcedureColumnsSQL(
-            catalog, schemaNamePattern, procedureNamePattern, columnNamePattern);
+            catalog, schemaNamePattern, procedureNamePattern, columnNamePattern, params);
     LOGGER.debug("SQL command to fetch procedure columns: {}", SQL);
     return metadataResultSetBuilder.getProcedureColumnsResult(
-        getResultSet(SQL, session, MetadataOperationType.GET_PROCEDURE_COLUMNS));
+        getResultSet(SQL, params, session, MetadataOperationType.GET_PROCEDURE_COLUMNS));
   }
 
   @Override
@@ -450,10 +455,19 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
   private DatabricksResultSet getResultSet(
       String SQL, IDatabricksSession session, MetadataOperationType metadataOperationType)
       throws SQLException {
+    return getResultSet(SQL, new HashMap<>(), session, metadataOperationType);
+  }
+
+  private DatabricksResultSet getResultSet(
+      String SQL,
+      Map<Integer, ImmutableSqlParameter> params,
+      IDatabricksSession session,
+      MetadataOperationType metadataOperationType)
+      throws SQLException {
     return queryExecutionClient.executeStatement(
         SQL,
         session.getComputeResource(),
-        new HashMap<>(),
+        params,
         StatementType.METADATA,
         session,
         null /* parentStatement */,
