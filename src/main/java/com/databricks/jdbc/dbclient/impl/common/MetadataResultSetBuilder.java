@@ -1169,6 +1169,7 @@ public class MetadataResultSetBuilder {
 
   private List<List<Object>> getRowsForProcedures(DatabricksResultSet resultSet)
       throws SQLException {
+    LOGGER.debug("Building rows for getProcedures result set");
     List<List<Object>> rows = new ArrayList<>();
     while (resultSet.next()) {
       List<Object> row = new ArrayList<>();
@@ -1188,6 +1189,7 @@ public class MetadataResultSetBuilder {
 
   private List<List<Object>> getRowsForProcedureColumns(DatabricksResultSet resultSet)
       throws SQLException {
+    LOGGER.debug("Building rows for getProcedureColumns result set");
     List<List<Object>> rows = new ArrayList<>();
     while (resultSet.next()) {
       String dataType = getStringOrNull(resultSet, "data_type");
@@ -1208,8 +1210,8 @@ public class MetadataResultSetBuilder {
       Integer numericPrecision = getIntOrNull(resultSet, "numeric_precision");
       Integer charMaxLength = getIntOrNull(resultSet, "character_maximum_length");
       Integer charOctetLength = getIntOrNull(resultSet, "character_octet_length");
-      row.add(numericPrecision != null ? numericPrecision : charMaxLength); // PRECISION
-      row.add(charOctetLength != null ? charOctetLength : numericPrecision); // LENGTH
+      row.add(numericPrecision != null ? numericPrecision : charMaxLength); // COLUMN_SIZE
+      row.add(charOctetLength); // BUFFER_LENGTH
       row.add(getShortOrNull(resultSet, "numeric_scale")); // SCALE
       row.add(getShortOrNull(resultSet, "numeric_precision_radix")); // RADIX
       row.add((short) procedureNullableUnknown); // NULLABLE
@@ -1226,21 +1228,28 @@ public class MetadataResultSetBuilder {
     return rows;
   }
 
+  private static final String PARAM_MODE_IN = "IN";
+  private static final String PARAM_MODE_INOUT = "INOUT";
+  private static final String PARAM_MODE_OUT = "OUT";
+  private static final String IS_RESULT_YES = "YES";
+
   private static short mapParameterModeToColumnType(String parameterMode, String isResult) {
-    if ("YES".equalsIgnoreCase(isResult)) {
+    if (IS_RESULT_YES.equalsIgnoreCase(isResult)) {
       return (short) procedureColumnReturn;
     }
     if (parameterMode == null) {
+      LOGGER.debug("Parameter mode is null, returning procedureColumnUnknown");
       return (short) procedureColumnUnknown;
     }
     switch (parameterMode.toUpperCase()) {
-      case "IN":
+      case PARAM_MODE_IN:
         return (short) procedureColumnIn;
-      case "INOUT":
+      case PARAM_MODE_INOUT:
         return (short) procedureColumnInOut;
-      case "OUT":
+      case PARAM_MODE_OUT:
         return (short) procedureColumnOut;
       default:
+        LOGGER.debug("Unknown parameter mode: {}, returning procedureColumnUnknown", parameterMode);
         return (short) procedureColumnUnknown;
     }
   }

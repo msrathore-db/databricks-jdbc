@@ -43,7 +43,7 @@ public class CommandConstants {
   private static final String PARAMETERS_SELECT_COLUMNS =
       "p.specific_catalog, p.specific_schema, p.specific_name,"
           + " p.parameter_name, p.parameter_mode, p.is_result,"
-          + " p.data_type, p.full_data_type,"
+          + " p.data_type,"
           + " p.numeric_precision, p.numeric_precision_radix, p.numeric_scale,"
           + " p.character_maximum_length, p.character_octet_length,"
           + " p.ordinal_position, p.parameter_default, p.comment";
