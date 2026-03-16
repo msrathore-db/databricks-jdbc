@@ -1173,15 +1173,15 @@ public class MetadataResultSetBuilder {
     List<List<Object>> rows = new ArrayList<>();
     while (resultSet.next()) {
       List<Object> row = new ArrayList<>();
-      row.add(getStringOrNull(resultSet, "routine_catalog")); // PROCEDURE_CAT
-      row.add(getStringOrNull(resultSet, "routine_schema")); // PROCEDURE_SCHEM
-      row.add(getStringOrNull(resultSet, "routine_name")); // PROCEDURE_NAME
+      row.add(getStringOrNull(resultSet, COL_ROUTINE_CATALOG)); // PROCEDURE_CAT
+      row.add(getStringOrNull(resultSet, COL_ROUTINE_SCHEMA)); // PROCEDURE_SCHEM
+      row.add(getStringOrNull(resultSet, COL_ROUTINE_NAME)); // PROCEDURE_NAME
       row.add(null); // NUM_INPUT_PARAMS (reserved)
       row.add(null); // NUM_OUTPUT_PARAMS (reserved)
       row.add(null); // NUM_RESULT_SETS (reserved)
-      row.add(getStringOrNull(resultSet, "comment")); // REMARKS
+      row.add(getStringOrNull(resultSet, COL_COMMENT)); // REMARKS
       row.add((short) procedureNoResult); // PROCEDURE_TYPE
-      row.add(getStringOrNull(resultSet, "specific_name")); // SPECIFIC_NAME
+      row.add(getStringOrNull(resultSet, COL_SPECIFIC_NAME)); // SPECIFIC_NAME
       rows.add(row);
     }
     return rows;
@@ -1192,42 +1192,65 @@ public class MetadataResultSetBuilder {
     LOGGER.debug("Building rows for getProcedureColumns result set");
     List<List<Object>> rows = new ArrayList<>();
     while (resultSet.next()) {
-      String dataType = getStringOrNull(resultSet, "data_type");
-      String parameterMode = getStringOrNull(resultSet, "parameter_mode");
-      String isResult = getStringOrNull(resultSet, "is_result");
+      String dataType = getStringOrNull(resultSet, COL_DATA_TYPE);
+      String parameterMode = getStringOrNull(resultSet, COL_PARAMETER_MODE);
+      String isResult = getStringOrNull(resultSet, COL_IS_RESULT);
 
       List<Object> row = new ArrayList<>();
-      row.add(getStringOrNull(resultSet, "specific_catalog")); // PROCEDURE_CAT
-      row.add(getStringOrNull(resultSet, "specific_schema")); // PROCEDURE_SCHEM
-      row.add(getStringOrNull(resultSet, "specific_name")); // PROCEDURE_NAME
-      row.add(getStringOrNull(resultSet, "parameter_name")); // COLUMN_NAME
+      row.add(getStringOrNull(resultSet, COL_SPECIFIC_CATALOG)); // PROCEDURE_CAT (nullable)
+      row.add(getStringOrNull(resultSet, COL_SPECIFIC_SCHEMA)); // PROCEDURE_SCHEM (nullable)
+      row.add(getStringOrNull(resultSet, COL_SPECIFIC_NAME)); // PROCEDURE_NAME
+      row.add(getStringOrNull(resultSet, COL_PARAMETER_NAME)); // COLUMN_NAME
       row.add(mapParameterModeToColumnType(parameterMode, isResult)); // COLUMN_TYPE
       row.add(
           dataType != null
               ? getCode(stripBaseTypeName(dataType.toUpperCase()))
               : null); // DATA_TYPE
       row.add(dataType != null ? dataType.toUpperCase() : null); // TYPE_NAME
-      Integer numericPrecision = getIntOrNull(resultSet, "numeric_precision");
-      Integer charMaxLength = getIntOrNull(resultSet, "character_maximum_length");
-      Integer charOctetLength = getIntOrNull(resultSet, "character_octet_length");
+      Integer numericPrecision = getIntOrNull(resultSet, COL_NUMERIC_PRECISION);
+      Integer charMaxLength = getIntOrNull(resultSet, COL_CHARACTER_MAX_LENGTH);
+      Integer charOctetLength = getIntOrNull(resultSet, COL_CHARACTER_OCTET_LENGTH);
       row.add(numericPrecision != null ? numericPrecision : charMaxLength); // COLUMN_SIZE
       row.add(charOctetLength); // BUFFER_LENGTH
-      row.add(getShortOrNull(resultSet, "numeric_scale")); // SCALE
-      row.add(getShortOrNull(resultSet, "numeric_precision_radix")); // RADIX
+      row.add(getShortOrNull(resultSet, COL_NUMERIC_SCALE)); // SCALE
+      row.add(getShortOrNull(resultSet, COL_NUMERIC_PRECISION_RADIX)); // RADIX
       row.add((short) procedureNullableUnknown); // NULLABLE
-      row.add(getStringOrNull(resultSet, "comment")); // REMARKS
-      row.add(getStringOrNull(resultSet, "parameter_default")); // COLUMN_DEF
+      row.add(getStringOrNull(resultSet, COL_COMMENT)); // REMARKS (nullable)
+      row.add(getStringOrNull(resultSet, COL_PARAMETER_DEFAULT)); // COLUMN_DEF (nullable)
       row.add(null); // SQL_DATA_TYPE (reserved)
       row.add(null); // SQL_DATETIME_SUB (reserved)
-      row.add(getIntOrNull(resultSet, "character_octet_length")); // CHAR_OCTET_LENGTH
-      row.add(getIntOrNull(resultSet, "ordinal_position")); // ORDINAL_POSITION
-      row.add(""); // IS_NULLABLE (unknown)
-      row.add(getStringOrNull(resultSet, "specific_name")); // SPECIFIC_NAME
+      row.add(charOctetLength); // CHAR_OCTET_LENGTH (reuse variable)
+      row.add(getIntOrNull(resultSet, COL_ORDINAL_POSITION)); // ORDINAL_POSITION
+      row.add(""); // IS_NULLABLE (empty string per JDBC spec when unknown)
+      row.add(getStringOrNull(resultSet, COL_SPECIFIC_NAME)); // SPECIFIC_NAME
       rows.add(row);
     }
     return rows;
   }
 
+  // Column name constants for information_schema.routines
+  private static final String COL_ROUTINE_CATALOG = "routine_catalog";
+  private static final String COL_ROUTINE_SCHEMA = "routine_schema";
+  private static final String COL_ROUTINE_NAME = "routine_name";
+  private static final String COL_SPECIFIC_CATALOG = "specific_catalog";
+  private static final String COL_SPECIFIC_SCHEMA = "specific_schema";
+  private static final String COL_SPECIFIC_NAME = "specific_name";
+  private static final String COL_COMMENT = "comment";
+
+  // Column name constants for information_schema.parameters
+  private static final String COL_PARAMETER_NAME = "parameter_name";
+  private static final String COL_PARAMETER_MODE = "parameter_mode";
+  private static final String COL_IS_RESULT = "is_result";
+  private static final String COL_DATA_TYPE = "data_type";
+  private static final String COL_NUMERIC_PRECISION = "numeric_precision";
+  private static final String COL_NUMERIC_PRECISION_RADIX = "numeric_precision_radix";
+  private static final String COL_NUMERIC_SCALE = "numeric_scale";
+  private static final String COL_CHARACTER_MAX_LENGTH = "character_maximum_length";
+  private static final String COL_CHARACTER_OCTET_LENGTH = "character_octet_length";
+  private static final String COL_ORDINAL_POSITION = "ordinal_position";
+  private static final String COL_PARAMETER_DEFAULT = "parameter_default";
+
+  // Parameter mode constants
   private static final String PARAM_MODE_IN = "IN";
   private static final String PARAM_MODE_INOUT = "INOUT";
   private static final String PARAM_MODE_OUT = "OUT";
