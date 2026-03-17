@@ -852,7 +852,7 @@ public class DatabricksDatabaseMetaDataTest {
   @Test
   public void testGetDriverMinorVersion() {
     int result = metaData.getDriverMinorVersion();
-    assertEquals(2, result);
+    assertEquals(3, result);
   }
 
   @Test
