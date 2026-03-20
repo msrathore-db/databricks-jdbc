@@ -828,7 +828,7 @@ public class DatabricksDatabaseMetaDataTest {
   @Test
   public void testGetDatabaseProductVersion() throws SQLException {
     String result = metaData.getDatabaseProductVersion();
-    assertEquals("3.3.2-SNAPSHOT", result);
+    assertEquals("3.3.2", result);
   }
 
   @Test
