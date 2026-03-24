@@ -34,7 +34,7 @@ jobs:
           ${{ runner.os }}-m2-
         
     - name: Run tests with coverage
-      run: mvn -pl jdbc-core clean test -Dgroups='!Jvm17PlusAndArrowToNioReflectionDisabled' jacoco:report
+      run: mvn -pl jdbc-core clean test -Dgroups='!Jvm17PlusAndArrowToNioReflectionDisabled' jacoco:report -Ddependency-check.skip=true
       
     - name: Check for coverage override
       id: override
