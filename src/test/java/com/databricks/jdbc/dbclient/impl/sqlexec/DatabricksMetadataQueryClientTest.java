@@ -943,13 +943,6 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   @Test
-  void testReturnsEmptyResultSetInCaseOfNullCatalog() throws SQLException {
-    // listColumns and listFunctions with null catalog are tested by other methods.
-    // listPrimaryKeys and listImportedKeys with null catalog now resolve to current catalog
-    // via resolveKeyBasedParams, so they are tested separately.
-  }
-
-  @Test
   void testKeyBasedOpsReturnEmptyForNullTable() throws SQLException {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
@@ -967,26 +960,23 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   @Test
-  void testKeyBasedOpsReturnEmptyForUnresolvableSchema() throws SQLException {
+  void testKeyBasedOpsReturnEmptyForNullSchemaWithExplicitCatalog() throws SQLException {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
-    // schema=null with catalog != current catalog should return empty
-    when(session.getCurrentCatalogAndSchema())
-        .thenReturn(new String[] {"current_catalog", "current_schema"});
-
+    // schema=null with explicit catalog should return empty (matching Thrift behavior)
     DatabricksResultSet pkResult =
-        metadataClient.listPrimaryKeys(session, "other_catalog", null, TEST_TABLE);
+        metadataClient.listPrimaryKeys(session, "any_catalog", null, TEST_TABLE);
     assertNotNull(pkResult);
     assertFalse(
         pkResult.next(),
-        "Expected empty result set for listPrimaryKeys with null schema and different catalog");
+        "Expected empty result set for listPrimaryKeys with null schema and explicit catalog");
 
     DatabricksResultSet ikResult =
-        metadataClient.listImportedKeys(session, "other_catalog", null, TEST_TABLE);
+        metadataClient.listImportedKeys(session, "any_catalog", null, TEST_TABLE);
     assertNotNull(ikResult);
     assertFalse(
         ikResult.next(),
-        "Expected empty result set for listImportedKeys with null schema and different catalog");
+        "Expected empty result set for listImportedKeys with null schema and explicit catalog");
   }
 
   @Test

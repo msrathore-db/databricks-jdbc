@@ -458,10 +458,6 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
     }
 
-    String resolvedForeignCatalog = resolvedForeignParams[0];
-    String resolvedForeignSchema = resolvedForeignParams[1];
-    String resolvedForeignTable = resolvedForeignParams[2];
-
     // Resolve null params for the parent side (used for filtering results)
     String[] resolvedParentParams =
         resolveKeyBasedParams(parentCatalog, parentSchema, parentTable, session);
@@ -474,6 +470,9 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
     }
 
+    String resolvedForeignCatalog = resolvedForeignParams[0];
+    String resolvedForeignSchema = resolvedForeignParams[1];
+    String resolvedForeignTable = resolvedForeignParams[2];
     String resolvedParentCatalog = resolvedParentParams[0];
     String resolvedParentSchema = resolvedParentParams[1];
     String resolvedParentTable = resolvedParentParams[2];

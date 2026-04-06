@@ -363,8 +363,7 @@ public class DatabricksSession implements IDatabricksSession {
               null /* metadataOperationType */);
 
       if (resultSet.next()) {
-        String currentCatalog = resultSet.getString(1);
-        return currentCatalog;
+        return resultSet.getString(1);
       }
     } catch (Exception e) {
       LOGGER.warn(
