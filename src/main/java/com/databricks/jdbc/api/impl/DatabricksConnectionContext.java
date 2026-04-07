@@ -29,10 +29,12 @@ import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
 
 public class DatabricksConnectionContext implements IDatabricksConnectionContext {
@@ -1186,16 +1188,18 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
       String httpPath =
           parameters.getOrDefault(
               DatabricksJdbcUrlParams.HTTP_PATH.getParamName().toLowerCase(), "");
-      int queryStart = httpPath.indexOf('?');
-      if (queryStart >= 0) {
-        String queryString = httpPath.substring(queryStart + 1);
-        for (String param : queryString.split("&")) {
-          String[] kv = param.split("=", 2);
-          if (kv.length == 2 && "o".equals(kv[0]) && !kv[1].isEmpty()) {
-            headers.put(ORG_ID_HEADER, kv[1]);
+      try {
+        for (NameValuePair param :
+            new URIBuilder("http://placeholder" + httpPath).getQueryParams()) {
+          if ("o".equals(param.getName())
+              && param.getValue() != null
+              && !param.getValue().isEmpty()) {
+            headers.put(ORG_ID_HEADER, param.getValue());
             break;
           }
         }
+      } catch (URISyntaxException e) {
+        // Malformed httpPath — skip SPOG header extraction
       }
     }
 
