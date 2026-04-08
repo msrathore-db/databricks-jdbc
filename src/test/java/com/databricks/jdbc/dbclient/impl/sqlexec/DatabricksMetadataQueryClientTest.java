@@ -764,13 +764,15 @@ public class DatabricksMetadataQueryClientTest {
    * delegates to getExportedKeys which returns empty in DBSQL.
    */
   @Test
-  void testListCrossReferences_allForeignParamsNull_returnsEmpty() throws Exception {
+  void testListCrossReferences_allForeignParamsNull_throws() {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
-    DatabricksResultSet result =
-        metadataClient.listCrossReferences(
-            session, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, null, null, null);
-    assertFalse(result.next(), "Should return empty when all foreign params are null, not throw");
+    assertThrows(
+        DatabricksSQLException.class,
+        () ->
+            metadataClient.listCrossReferences(
+                session, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, null, null, null),
+        "Should throw when foreign table is null");
   }
 
   @Test
@@ -943,40 +945,78 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   @Test
-  void testKeyBasedOpsReturnEmptyForNullTable() throws SQLException {
+  void testKeyBasedOpsThrowForNullTable() {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
-    // null table should return empty for listPrimaryKeys
-    DatabricksResultSet pkResult =
-        metadataClient.listPrimaryKeys(session, TEST_CATALOG, TEST_SCHEMA, null);
-    assertNotNull(pkResult);
-    assertFalse(pkResult.next(), "Expected empty result set for listPrimaryKeys with null table");
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listPrimaryKeys(session, TEST_CATALOG, TEST_SCHEMA, null),
+        "listPrimaryKeys should throw for null table");
 
-    // null table should return empty for listImportedKeys
-    DatabricksResultSet ikResult =
-        metadataClient.listImportedKeys(session, TEST_CATALOG, TEST_SCHEMA, null);
-    assertNotNull(ikResult);
-    assertFalse(ikResult.next(), "Expected empty result set for listImportedKeys with null table");
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listImportedKeys(session, TEST_CATALOG, TEST_SCHEMA, null),
+        "listImportedKeys should throw for null table");
   }
 
   @Test
-  void testKeyBasedOpsReturnEmptyForNullSchemaWithExplicitCatalog() throws SQLException {
+  void testKeyBasedOpsThrowForEmptyTable() {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
-    // schema=null with explicit catalog should return empty (matching Thrift behavior)
-    DatabricksResultSet pkResult =
-        metadataClient.listPrimaryKeys(session, "any_catalog", null, TEST_TABLE);
-    assertNotNull(pkResult);
-    assertFalse(
-        pkResult.next(),
-        "Expected empty result set for listPrimaryKeys with null schema and explicit catalog");
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listPrimaryKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
+        "listPrimaryKeys should throw for empty table");
 
-    DatabricksResultSet ikResult =
-        metadataClient.listImportedKeys(session, "any_catalog", null, TEST_TABLE);
-    assertNotNull(ikResult);
-    assertFalse(
-        ikResult.next(),
-        "Expected empty result set for listImportedKeys with null schema and explicit catalog");
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listImportedKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
+        "listImportedKeys should throw for empty table");
+  }
+
+  @Test
+  void testKeyBasedOpsThrowForNullSchemaWithExplicitCatalog() {
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listPrimaryKeys(session, "any_catalog", null, TEST_TABLE),
+        "listPrimaryKeys should throw for null schema with explicit catalog");
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listImportedKeys(session, "any_catalog", null, TEST_TABLE),
+        "listImportedKeys should throw for null schema with explicit catalog");
+  }
+
+  @Test
+  void testKeyBasedOpsThrowForEmptySchemaWithExplicitCatalog() {
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listPrimaryKeys(session, "any_catalog", "", TEST_TABLE),
+        "listPrimaryKeys should throw for empty schema with explicit catalog");
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listImportedKeys(session, "any_catalog", "", TEST_TABLE),
+        "listImportedKeys should throw for empty schema with explicit catalog");
+  }
+
+  @Test
+  void testExportedKeysThrowsForNullTable() {
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, null),
+        "listExportedKeys should throw for null table");
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
+        "listExportedKeys should throw for empty table");
   }
 
   @Test
