@@ -147,17 +147,6 @@ public class MetadataNullResolutionTests extends AbstractFakeServiceIntegrationT
         "Should throw when schema is null and catalog is explicitly provided");
   }
 
-  @Test
-  @Order(6)
-  void testGetPrimaryKeys_emptyTableThrows() throws SQLException {
-    assertNotNull(connection);
-    DatabaseMetaData md = connection.getMetaData();
-    assertThrows(
-        SQLException.class,
-        () -> md.getPrimaryKeys(testCatalog, TEST_SCHEMA_NAME, ""),
-        "Should throw when table is empty string");
-  }
-
   // ==================== getImportedKeys ====================
 
   @Test
@@ -305,39 +294,6 @@ public class MetadataNullResolutionTests extends AbstractFakeServiceIntegrationT
             md.getCrossReference(
                 testCatalog, TEST_SCHEMA_NAME, null, testCatalog, TEST_SCHEMA_NAME, CHILD_TABLE),
         "Should throw when parent table is null");
-  }
-
-  @Test
-  @Order(25)
-  void testGetCrossReference_allEmptyThrows() throws SQLException {
-    assertNotNull(connection);
-    DatabaseMetaData md = connection.getMetaData();
-    assertThrows(
-        SQLException.class,
-        () -> md.getCrossReference("", "", "", "", "", ""),
-        "Should throw when all parameters are empty strings");
-  }
-
-  @Test
-  @Order(26)
-  void testGetCrossReference_emptyForeignSideThrows() throws SQLException {
-    assertNotNull(connection);
-    DatabaseMetaData md = connection.getMetaData();
-    assertThrows(
-        SQLException.class,
-        () -> md.getCrossReference(testCatalog, TEST_SCHEMA_NAME, PARENT_TABLE, "", "", ""),
-        "Should throw when foreign side is all empty");
-  }
-
-  @Test
-  @Order(27)
-  void testGetCrossReference_emptyParentSideThrows() throws SQLException {
-    assertNotNull(connection);
-    DatabaseMetaData md = connection.getMetaData();
-    assertThrows(
-        SQLException.class,
-        () -> md.getCrossReference("", "", "", testCatalog, TEST_SCHEMA_NAME, CHILD_TABLE),
-        "Should throw when parent side is all empty");
   }
 
   // ==================== Cleanup ====================

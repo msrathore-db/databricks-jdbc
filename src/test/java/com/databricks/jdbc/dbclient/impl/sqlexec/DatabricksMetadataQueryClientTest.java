@@ -960,21 +960,6 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   @Test
-  void testKeyBasedOpsThrowForEmptyTable() {
-    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
-
-    assertThrows(
-        DatabricksSQLException.class,
-        () -> metadataClient.listPrimaryKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
-        "listPrimaryKeys should throw for empty table");
-
-    assertThrows(
-        DatabricksSQLException.class,
-        () -> metadataClient.listImportedKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
-        "listImportedKeys should throw for empty table");
-  }
-
-  @Test
   void testKeyBasedOpsThrowForNullSchemaWithExplicitCatalog() {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
@@ -990,21 +975,6 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   @Test
-  void testKeyBasedOpsThrowForEmptySchemaWithExplicitCatalog() {
-    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
-
-    assertThrows(
-        DatabricksSQLException.class,
-        () -> metadataClient.listPrimaryKeys(session, "any_catalog", "", TEST_TABLE),
-        "listPrimaryKeys should throw for empty schema with explicit catalog");
-
-    assertThrows(
-        DatabricksSQLException.class,
-        () -> metadataClient.listImportedKeys(session, "any_catalog", "", TEST_TABLE),
-        "listImportedKeys should throw for empty schema with explicit catalog");
-  }
-
-  @Test
   void testExportedKeysThrowsForNullTable() {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
@@ -1012,11 +982,6 @@ public class DatabricksMetadataQueryClientTest {
         DatabricksSQLException.class,
         () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, null),
         "listExportedKeys should throw for null table");
-
-    assertThrows(
-        DatabricksSQLException.class,
-        () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
-        "listExportedKeys should throw for empty table");
   }
 
   @Test

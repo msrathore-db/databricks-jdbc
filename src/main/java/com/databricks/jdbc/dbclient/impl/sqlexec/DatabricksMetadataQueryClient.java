@@ -390,11 +390,10 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       IDatabricksSession session, String catalog, String schema, String table) throws SQLException {
     LOGGER.debug("public ResultSet listExportedKeys() using SDK");
 
-    if (table == null || table.isEmpty()) {
-      LOGGER.debug("listExportedKeys: table is null or empty, throwing");
+    if (table == null) {
+      LOGGER.debug("listExportedKeys: table is null, throwing");
       throw new DatabricksSQLException(
-          "Invalid argument: tableName may not be null or empty",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          "Invalid argument: tableName may not be null", DatabricksDriverErrorCode.INVALID_STATE);
     }
 
     // Only fetch currentCatalog if multiple catalog support is disabled
@@ -508,21 +507,19 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
   }
 
   /**
-   * Validates and resolves null/empty catalog/schema/table for key-based metadata operations to
-   * match Thrift server behavior. Throws DatabricksSQLException for invalid parameter combinations
+   * Validates and resolves null catalog/schema/table for key-based metadata operations to match
+   * Thrift server behavior. Throws DatabricksSQLException for invalid parameter combinations
    * (matching Thrift error behavior). When catalog is null, it is replaced with current_catalog and
    * (if schema is also null) schema is replaced with current_schema.
    *
-   * @throws DatabricksSQLException if table is null/empty, or schema is null/empty with an explicit
-   *     catalog
+   * @throws DatabricksSQLException if table is null, or schema is null with an explicit catalog
    */
   private String[] resolveKeyBasedParams(
       String catalog, String schema, String table, IDatabricksSession session) throws SQLException {
-    if (table == null || table.isEmpty()) {
-      LOGGER.debug("resolveKeyBasedParams: table is null or empty, throwing");
+    if (table == null) {
+      LOGGER.debug("resolveKeyBasedParams: table is null, throwing");
       throw new DatabricksSQLException(
-          "Invalid argument: tableName may not be null or empty",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          "Invalid argument: tableName may not be null", DatabricksDriverErrorCode.INVALID_STATE);
     }
 
     if (catalog == null) {
@@ -531,12 +528,11 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       if (schema == null) {
         schema = currentCatalogAndSchema[1];
       }
-    } else if (schema == null || schema.isEmpty()) {
+    } else if (schema == null) {
       LOGGER.debug(
-          "resolveKeyBasedParams: schema is null or empty with explicit catalog '{}', throwing",
-          catalog);
+          "resolveKeyBasedParams: schema is null with explicit catalog '{}', throwing", catalog);
       throw new DatabricksSQLException(
-          "Invalid argument: schema may not be null or empty when catalog is specified",
+          "Invalid argument: schema may not be null when catalog is specified",
           DatabricksDriverErrorCode.INVALID_STATE);
     }
 

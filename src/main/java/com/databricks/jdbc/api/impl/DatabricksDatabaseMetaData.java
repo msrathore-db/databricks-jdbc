@@ -1132,13 +1132,10 @@ public class DatabricksDatabaseMetaData implements DatabaseMetaData {
             foreignTable));
 
     throwExceptionIfConnectionIsClosed();
-    boolean parentTableMissing = parentTable == null || parentTable.isEmpty();
-    boolean foreignTableMissing = foreignTable == null || foreignTable.isEmpty();
-    if (parentTableMissing && foreignTableMissing) {
-      LOGGER.debug(
-          "getCrossReference: both parentTable and foreignTable are null or empty, throwing");
+    if (parentTable == null && foreignTable == null) {
+      LOGGER.debug("getCrossReference: both parentTable and foreignTable are null, throwing");
       throw new DatabricksSQLException(
-          "Invalid argument: foreignTable and parentTableName are both null or empty",
+          "Invalid argument: foreignTable and parentTableName are both null",
           DatabricksDriverErrorCode.INVALID_STATE);
     }
 
