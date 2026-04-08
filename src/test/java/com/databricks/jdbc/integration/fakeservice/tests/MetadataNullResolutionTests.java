@@ -147,6 +147,17 @@ public class MetadataNullResolutionTests extends AbstractFakeServiceIntegrationT
         "Should throw when schema is null and catalog is explicitly provided");
   }
 
+  @Test
+  @Order(6)
+  void testGetPrimaryKeys_emptyTableThrows() throws SQLException {
+    assertNotNull(connection);
+    DatabaseMetaData md = connection.getMetaData();
+    assertThrows(
+        SQLException.class,
+        () -> md.getPrimaryKeys(testCatalog, TEST_SCHEMA_NAME, ""),
+        "Should throw when table is empty string");
+  }
+
   // ==================== getImportedKeys ====================
 
   @Test
@@ -285,15 +296,15 @@ public class MetadataNullResolutionTests extends AbstractFakeServiceIntegrationT
 
   @Test
   @Order(24)
-  void testGetCrossReference_nullParentTableReturnsEmpty() throws SQLException {
+  void testGetCrossReference_nullParentTableThrows() throws SQLException {
     assertNotNull(connection);
     DatabaseMetaData md = connection.getMetaData();
-    try (ResultSet rs =
-        md.getCrossReference(
-            testCatalog, TEST_SCHEMA_NAME, null, testCatalog, TEST_SCHEMA_NAME, CHILD_TABLE)) {
-      assertNotNull(rs);
-      assertFalse(rs.next(), "Should return empty when parent table is null");
-    }
+    assertThrows(
+        SQLException.class,
+        () ->
+            md.getCrossReference(
+                testCatalog, TEST_SCHEMA_NAME, null, testCatalog, TEST_SCHEMA_NAME, CHILD_TABLE),
+        "Should throw when parent table is null");
   }
 
   @Test

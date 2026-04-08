@@ -773,17 +773,18 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   /**
-   * Tests that getCrossReference returns empty result set when parent table is null. Matches Thrift
-   * server behavior.
+   * Tests that getCrossReference returns empty result set when parent table is null but foreign
+   * table is specified. Thrift server requires parentTable, but the null check is at the
+   * DatabricksDatabaseMetaData layer. At this layer, null parentTable with null foreignTable
+   * returns empty since foreignTable == null triggers the early return.
    */
   @Test
-  void testListCrossReferences_parentTableNull_returnsEmpty() throws Exception {
+  void testListCrossReferences_bothTablesNull_returnsEmpty() throws Exception {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
     DatabricksResultSet result =
-        metadataClient.listCrossReferences(
-            session, null, null, null, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE);
-    assertFalse(result.next(), "Should return empty when parent table is null");
+        metadataClient.listCrossReferences(session, null, null, null, null, null, null);
+    assertFalse(result.next(), "Should return empty when both tables are null");
   }
 
   @Test
@@ -971,6 +972,21 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   @Test
+  void testKeyBasedOpsThrowForEmptyTable() {
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listPrimaryKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
+        "listPrimaryKeys should throw for empty table");
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listImportedKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
+        "listImportedKeys should throw for empty table");
+  }
+
+  @Test
   void testKeyBasedOpsThrowForNullSchemaWithExplicitCatalog() {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
@@ -993,6 +1009,11 @@ public class DatabricksMetadataQueryClientTest {
         DatabricksSQLException.class,
         () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, null),
         "listExportedKeys should throw for null table");
+
+    assertThrows(
+        DatabricksSQLException.class,
+        () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
+        "listExportedKeys should throw for empty table");
   }
 
   @Test

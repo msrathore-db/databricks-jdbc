@@ -1132,19 +1132,19 @@ public class DatabricksDatabaseMetaData implements DatabaseMetaData {
             foreignTable));
 
     throwExceptionIfConnectionIsClosed();
-    if (parentTable == null && foreignTable == null) {
-      LOGGER.debug("getCrossReference: both parentTable and foreignTable are null, throwing");
+    // Thrift requires parentTable — null or empty parentTable is invalid
+    if (parentTable == null || parentTable.isEmpty()) {
+      LOGGER.debug("getCrossReference: parentTable is null or empty, throwing");
       throw new DatabricksSQLException(
-          "Invalid argument: foreignTable and parentTableName are both null",
+          "Invalid argument: parentTable may not be null or empty",
           DatabricksDriverErrorCode.INVALID_STATE);
     }
-    // Empty string table names are invalid — Thrift server rejects them, so we do too
-    boolean parentTableEmpty = parentTable != null && parentTable.isEmpty();
-    boolean foreignTableEmpty = foreignTable != null && foreignTable.isEmpty();
-    if (parentTableEmpty || foreignTableEmpty) {
-      LOGGER.debug("getCrossReference: parentTable or foreignTable is empty string, throwing");
+    // Empty foreign table is also invalid — Thrift server rejects it
+    if (foreignTable != null && foreignTable.isEmpty()) {
+      LOGGER.debug("getCrossReference: foreignTable is empty string, throwing");
       throw new DatabricksSQLException(
-          "Invalid argument: table name may not be empty", DatabricksDriverErrorCode.INVALID_STATE);
+          "Invalid argument: foreignTable may not be empty",
+          DatabricksDriverErrorCode.INVALID_STATE);
     }
 
     return session
