@@ -390,11 +390,10 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       IDatabricksSession session, String catalog, String schema, String table) throws SQLException {
     LOGGER.debug("public ResultSet listExportedKeys() using SDK");
 
-    if (table == null || table.isEmpty()) {
-      LOGGER.debug("listExportedKeys: table is null or empty, throwing");
+    if (table == null) {
+      LOGGER.debug("listExportedKeys: table is null, throwing");
       throw new DatabricksSQLException(
-          "Invalid argument: tableName may not be null or empty",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          "Invalid argument: tableName may not be null", DatabricksDriverErrorCode.INVALID_STATE);
     }
 
     // Only fetch currentCatalog if multiple catalog support is disabled

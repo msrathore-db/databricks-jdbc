@@ -1009,11 +1009,6 @@ public class DatabricksMetadataQueryClientTest {
         DatabricksSQLException.class,
         () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, null),
         "listExportedKeys should throw for null table");
-
-    assertThrows(
-        DatabricksSQLException.class,
-        () -> metadataClient.listExportedKeys(session, TEST_CATALOG, TEST_SCHEMA, ""),
-        "listExportedKeys should throw for empty table");
   }
 
   @Test
