@@ -1135,6 +1135,8 @@ public class DatabricksDatabaseMetaData implements DatabaseMetaData {
     boolean parentTableMissing = parentTable == null || parentTable.isEmpty();
     boolean foreignTableMissing = foreignTable == null || foreignTable.isEmpty();
     if (parentTableMissing && foreignTableMissing) {
+      LOGGER.debug(
+          "getCrossReference: both parentTable and foreignTable are null or empty, throwing");
       throw new DatabricksSQLException(
           "Invalid argument: foreignTable and parentTableName are both null or empty",
           DatabricksDriverErrorCode.INVALID_STATE);
