@@ -759,20 +759,31 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   /**
-   * Tests that getCrossReference returns empty result set (not an exception) when all three
-   * foreign-side parameters are null. Matches Thrift server behavior where null foreign table
-   * delegates to getExportedKeys which returns empty in DBSQL.
+   * Tests that getCrossReference returns empty result set (not an exception) when foreign table is
+   * null. Matches Thrift server behavior where null table means "unspecified" and returns empty.
    */
   @Test
-  void testListCrossReferences_allForeignParamsNull_throws() {
+  void testListCrossReferences_allForeignParamsNull_returnsEmpty() throws Exception {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
-    assertThrows(
-        DatabricksSQLException.class,
-        () ->
-            metadataClient.listCrossReferences(
-                session, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, null, null, null),
-        "Should throw when foreign table is null");
+    DatabricksResultSet result =
+        metadataClient.listCrossReferences(
+            session, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, null, null, null);
+    assertFalse(result.next(), "Should return empty when foreign table is null");
+  }
+
+  /**
+   * Tests that getCrossReference returns empty result set when parent table is null. Matches Thrift
+   * server behavior.
+   */
+  @Test
+  void testListCrossReferences_parentTableNull_returnsEmpty() throws Exception {
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+
+    DatabricksResultSet result =
+        metadataClient.listCrossReferences(
+            session, null, null, null, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE);
+    assertFalse(result.next(), "Should return empty when parent table is null");
   }
 
   @Test

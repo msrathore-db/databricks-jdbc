@@ -272,28 +272,65 @@ public class MetadataNullResolutionTests extends AbstractFakeServiceIntegrationT
 
   @Test
   @Order(23)
-  void testGetCrossReference_nullForeignTableThrows() throws SQLException {
+  void testGetCrossReference_nullForeignTableReturnsEmpty() throws SQLException {
     assertNotNull(connection);
     DatabaseMetaData md = connection.getMetaData();
-    assertThrows(
-        SQLException.class,
-        () ->
-            md.getCrossReference(
-                testCatalog, TEST_SCHEMA_NAME, PARENT_TABLE, testCatalog, TEST_SCHEMA_NAME, null),
-        "Should throw when foreign table is null");
+    try (ResultSet rs =
+        md.getCrossReference(
+            testCatalog, TEST_SCHEMA_NAME, PARENT_TABLE, testCatalog, TEST_SCHEMA_NAME, null)) {
+      assertNotNull(rs);
+      assertFalse(rs.next(), "Should return empty when foreign table is null");
+    }
   }
 
   @Test
   @Order(24)
-  void testGetCrossReference_nullParentTableThrows() throws SQLException {
+  void testGetCrossReference_nullParentTableReturnsEmpty() throws SQLException {
+    assertNotNull(connection);
+    DatabaseMetaData md = connection.getMetaData();
+    try (ResultSet rs =
+        md.getCrossReference(
+            testCatalog, TEST_SCHEMA_NAME, null, testCatalog, TEST_SCHEMA_NAME, CHILD_TABLE)) {
+      assertNotNull(rs);
+      assertFalse(rs.next(), "Should return empty when parent table is null");
+    }
+  }
+
+  @Test
+  @Order(25)
+  void testGetCrossReference_emptyForeignTableThrows() throws SQLException {
     assertNotNull(connection);
     DatabaseMetaData md = connection.getMetaData();
     assertThrows(
         SQLException.class,
         () ->
             md.getCrossReference(
-                testCatalog, TEST_SCHEMA_NAME, null, testCatalog, TEST_SCHEMA_NAME, CHILD_TABLE),
-        "Should throw when parent table is null");
+                testCatalog, TEST_SCHEMA_NAME, PARENT_TABLE, testCatalog, TEST_SCHEMA_NAME, ""),
+        "Should throw when foreign table is empty string");
+  }
+
+  @Test
+  @Order(26)
+  void testGetCrossReference_emptyParentTableThrows() throws SQLException {
+    assertNotNull(connection);
+    DatabaseMetaData md = connection.getMetaData();
+    assertThrows(
+        SQLException.class,
+        () ->
+            md.getCrossReference(
+                testCatalog, TEST_SCHEMA_NAME, "", testCatalog, TEST_SCHEMA_NAME, CHILD_TABLE),
+        "Should throw when parent table is empty string");
+  }
+
+  @Test
+  @Order(27)
+  void testGetCrossReference_allEmptyThrows() throws SQLException {
+    assertNotNull(connection);
+    DatabaseMetaData md = connection.getMetaData();
+    assertThrows(
+        SQLException.class,
+        () -> md.getCrossReference("", "", "", "", "", ""),
+        "Should throw when all parameters are empty strings");
   }
 
   // ==================== Cleanup ====================

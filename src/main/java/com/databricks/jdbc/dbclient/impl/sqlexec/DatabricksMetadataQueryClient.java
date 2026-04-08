@@ -420,6 +420,13 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       throws SQLException {
     LOGGER.debug("public ResultSet listCrossReferences() using SDK");
 
+    // Null table on either side means "unspecified" — Thrift server returns empty ResultSet
+    if (foreignTable == null || parentTable == null) {
+      LOGGER.debug(
+          "listCrossReferences: foreignTable or parentTable is null, returning empty result set");
+      return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
+    }
+
     // Only fetch currentCatalog if multiple catalog support is disabled
     String currentCatalog = isMultipleCatalogSupportDisabled() ? session.getCurrentCatalog() : null;
     if (!metadataResultSetBuilder.shouldAllowCatalogAccess(parentCatalog, currentCatalog, session)
@@ -428,10 +435,10 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
     }
 
-    // Resolve null/empty params for the foreign side (used to build the SQL query)
+    // Resolve null catalog/schema for the foreign side (used to build the SQL query)
     String[] resolvedForeignParams =
         resolveKeyBasedParams(foreignCatalog, foreignSchema, foreignTable, session);
-    // Resolve null/empty params for the parent side (used for filtering results)
+    // Resolve null catalog/schema for the parent side (used for filtering results)
     String[] resolvedParentParams =
         resolveKeyBasedParams(parentCatalog, parentSchema, parentTable, session);
 
