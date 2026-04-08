@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -100,17 +99,26 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
         new CommandBuilder(catalog, session).setSchemaPattern(schemaNamePattern);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_SCHEMAS);
     LOGGER.debug("SQL command to fetch schemas: {}", SQL);
+    // Strip JDBC escape sequences from catalog for the result set TABLE_CATALOG column.
+    // SHOW SCHEMAS IN `catalog` doesn't return a catalog column from the server,
+    // so the client populates it from this parameter. Without stripping, JDBC-escaped
+    // underscores (\_) would appear in the result (e.g., "comparator\_tests" instead
+    // of "comparator_tests").
+    String resultCatalog =
+        catalog != null ? WildcardUtil.stripJdbcEscapes(catalog).toLowerCase() : null;
     try {
       return metadataResultSetBuilder.getSchemasResult(
-          getResultSet(SQL, session, MetadataOperationType.GET_SCHEMAS), catalog);
+          getResultSet(SQL, session, MetadataOperationType.GET_SCHEMAS), resultCatalog);
     } catch (SQLException e) {
-      if (WildcardUtil.isNullOrWildcard(catalog)
-          && PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())) {
+      if (catalog == null && PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())) {
         // This is a fallback for the case where the SQL command fails with "syntax error at or near
         // "ALL CATALOGS""
         // This is a known issue for older DBR versions
         LOGGER.debug("SQL command failed with syntax error. Fetching schemas across all catalogs.");
         return fetchSchemasAcrossCatalogs(session, schemaNamePattern);
+      } else if (isObjectNotFoundException(e)) {
+        LOGGER.debug("Object not found for getSchemas, returning empty result set.");
+        return metadataResultSetBuilder.getSchemasResult(new ArrayList<>());
       } else {
         throw e;
       }
@@ -125,10 +133,11 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       String tableNamePattern,
       String[] tableTypes)
       throws SQLException {
-    String[] validatedTableTypes =
-        Optional.ofNullable(tableTypes)
-            .filter(types -> types.length > 0)
-            .orElse(DEFAULT_TABLE_TYPES);
+    // Per JDBC spec: null types = return all types; empty array = return nothing
+    if (tableTypes != null && tableTypes.length == 0) {
+      return metadataResultSetBuilder.getTablesResult(catalog, tableTypes, new ArrayList<>());
+    }
+    String[] validatedTableTypes = tableTypes != null ? tableTypes : DEFAULT_TABLE_TYPES;
 
     // Only fetch currentCatalog if multiple catalog support is disabled
     String currentCatalog = isMultipleCatalogSupportDisabled() ? session.getCurrentCatalog() : null;
@@ -149,11 +158,10 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       return metadataResultSetBuilder.getTablesResult(
           getResultSet(SQL, session, MetadataOperationType.GET_TABLES), validatedTableTypes);
     } catch (SQLException e) {
-      if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())
-          && (catalog == null || catalog.equals("*") || catalog.equals("%"))) {
-        // Gracefully handles the case where an older DBSQL version doesn't support all catalogs in
-        // the SHOW TABLES command.
-        LOGGER.debug("SQL command failed with syntax error. Returning empty result set.");
+      if ((PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState()) && catalog == null)
+          || isObjectNotFoundException(e)
+          || isEmptyPatternError(schemaNamePattern, tableNamePattern)) {
+        LOGGER.debug("SQL error for getTables ({}), returning empty result set.", e.getSQLState());
         return metadataResultSetBuilder.getTablesResult(
             catalog, validatedTableTypes, new ArrayList<>());
       } else {
@@ -198,8 +206,17 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
             .setColumnPattern(columnNamePattern);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_COLUMNS);
     LOGGER.debug("SQL command to fetch columns: {}", SQL);
-    return metadataResultSetBuilder.getColumnsResult(
-        getResultSet(SQL, session, MetadataOperationType.GET_COLUMNS));
+    try {
+      return metadataResultSetBuilder.getColumnsResult(
+          getResultSet(SQL, session, MetadataOperationType.GET_COLUMNS));
+    } catch (SQLException e) {
+      if (isObjectNotFoundException(e)
+          || isEmptyPatternError(schemaNamePattern, tableNamePattern, columnNamePattern)) {
+        LOGGER.debug("Error for getColumns ({}), returning empty result set.", e.getSQLState());
+        return metadataResultSetBuilder.getColumnsResult(new ArrayList<>());
+      }
+      throw e;
+    }
   }
 
   @Override
@@ -238,8 +255,16 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
             .setFunctionPattern(functionNamePattern);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_FUNCTIONS);
     LOGGER.debug("SQL command to fetch functions: {}", SQL);
-    return metadataResultSetBuilder.getFunctionsResult(
-        getResultSet(SQL, session, MetadataOperationType.GET_FUNCTIONS), catalog);
+    try {
+      return metadataResultSetBuilder.getFunctionsResult(
+          getResultSet(SQL, session, MetadataOperationType.GET_FUNCTIONS), catalog);
+    } catch (SQLException e) {
+      if (isObjectNotFoundException(e)) {
+        LOGGER.debug("Object not found for getFunctions, returning empty result set.");
+        return metadataResultSetBuilder.getFunctionsResult(catalog, new ArrayList<>());
+      }
+      throw e;
+    }
   }
 
   @Override
@@ -298,10 +323,10 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
 
     catalog = autoFillCatalog(catalog, currentCatalog);
 
-    // Return empty result set if catalog, schema, or table is null
-    if (catalog == null || schema == null || table == null) {
+    String[] resolvedParams = resolveKeyBasedParams(catalog, schema, table, session);
+    if (resolvedParams == null) {
       LOGGER.debug(
-          "Catalog, schema, or table is null (catalog={}, schema={}, table={}), returning empty result set for listPrimaryKeys",
+          "Could not resolve key-based params (catalog={}, schema={}, table={}), returning empty result set for listPrimaryKeys",
           catalog,
           schema,
           table);
@@ -312,12 +337,26 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
           com.databricks.jdbc.common.CommandName.LIST_PRIMARY_KEYS);
     }
 
+    String resolvedCatalog = resolvedParams[0];
+    String resolvedSchema = resolvedParams[1];
+    String resolvedTable = resolvedParams[2];
+
     CommandBuilder commandBuilder =
-        new CommandBuilder(catalog, session).setSchema(schema).setTable(table);
+        new CommandBuilder(resolvedCatalog, session)
+            .setSchema(resolvedSchema)
+            .setTable(resolvedTable);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_PRIMARY_KEYS);
     LOGGER.debug("SQL command to fetch primary keys: {}", SQL);
-    return metadataResultSetBuilder.getPrimaryKeysResult(
-        getResultSet(SQL, session, MetadataOperationType.GET_PRIMARY_KEYS));
+    try {
+      return metadataResultSetBuilder.getPrimaryKeysResult(
+          getResultSet(SQL, session, MetadataOperationType.GET_PRIMARY_KEYS));
+    } catch (SQLException e) {
+      if (isObjectNotFoundException(e)) {
+        LOGGER.debug("Object not found for getPrimaryKeys, returning empty result");
+        return metadataResultSetBuilder.getPrimaryKeysResult(new ArrayList<>());
+      }
+      throw e;
+    }
   }
 
   @Override
@@ -333,10 +372,10 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
 
     catalog = autoFillCatalog(catalog, currentCatalog);
 
-    // Return empty result set if catalog, schema, or table is null
-    if (catalog == null || schema == null || table == null) {
+    String[] resolvedParams = resolveKeyBasedParams(catalog, schema, table, session);
+    if (resolvedParams == null) {
       LOGGER.debug(
-          "Catalog, schema, or table is null (catalog={}, schema={}, table={}), returning empty result set for listImportedKeys",
+          "Could not resolve key-based params (catalog={}, schema={}, table={}), returning empty result set for listImportedKeys",
           catalog,
           schema,
           table);
@@ -347,17 +386,22 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
           com.databricks.jdbc.common.CommandName.GET_IMPORTED_KEYS);
     }
 
+    String resolvedCatalog = resolvedParams[0];
+    String resolvedSchema = resolvedParams[1];
+    String resolvedTable = resolvedParams[2];
+
     CommandBuilder commandBuilder =
-        new CommandBuilder(catalog, session).setSchema(schema).setTable(table);
+        new CommandBuilder(resolvedCatalog, session)
+            .setSchema(resolvedSchema)
+            .setTable(resolvedTable);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_FOREIGN_KEYS);
     try {
       return metadataResultSetBuilder.getImportedKeysResult(
           getResultSet(SQL, session, MetadataOperationType.GET_CROSS_REFERENCE));
     } catch (SQLException e) {
-      if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())) {
-        // This is a workaround for the issue where the SQL command fails with "syntax error at or
-        // near "foreign""
-        LOGGER.debug("SQL command failed with syntax error. Returning empty result set.");
+      if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState()) || isObjectNotFoundException(e)) {
+        LOGGER.debug(
+            "SQL error for getImportedKeys ({}), returning empty result set.", e.getSQLState());
         return metadataResultSetBuilder.getImportedKeys(new ArrayList<>());
       } else {
         throw e;
@@ -402,21 +446,52 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
     }
 
+    // Resolve null params for the foreign side (used to build the SQL query)
+    String[] resolvedForeignParams =
+        resolveKeyBasedParams(foreignCatalog, foreignSchema, foreignTable, session);
+    if (resolvedForeignParams == null) {
+      LOGGER.debug(
+          "Could not resolve foreign key-based params (catalog={}, schema={}, table={}), returning empty result set",
+          foreignCatalog,
+          foreignSchema,
+          foreignTable);
+      return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
+    }
+
+    // Resolve null params for the parent side (used for filtering results)
+    String[] resolvedParentParams =
+        resolveKeyBasedParams(parentCatalog, parentSchema, parentTable, session);
+    if (resolvedParentParams == null) {
+      LOGGER.debug(
+          "Could not resolve parent key-based params (catalog={}, schema={}, table={}), returning empty result set",
+          parentCatalog,
+          parentSchema,
+          parentTable);
+      return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
+    }
+
+    String resolvedForeignCatalog = resolvedForeignParams[0];
+    String resolvedForeignSchema = resolvedForeignParams[1];
+    String resolvedForeignTable = resolvedForeignParams[2];
+    String resolvedParentCatalog = resolvedParentParams[0];
+    String resolvedParentSchema = resolvedParentParams[1];
+    String resolvedParentTable = resolvedParentParams[2];
+
     CommandBuilder commandBuilder =
-        new CommandBuilder(foreignCatalog, session).setSchema(foreignSchema).setTable(foreignTable);
+        new CommandBuilder(resolvedForeignCatalog, session)
+            .setSchema(resolvedForeignSchema)
+            .setTable(resolvedForeignTable);
     String SQL = commandBuilder.getSQLString(CommandName.LIST_FOREIGN_KEYS);
     try {
       return metadataResultSetBuilder.getCrossReferenceKeysResult(
           getResultSet(SQL, session, MetadataOperationType.GET_CROSS_REFERENCE),
-          parentCatalog,
-          parentSchema,
-          parentTable);
+          resolvedParentCatalog,
+          resolvedParentSchema,
+          resolvedParentTable);
     } catch (SQLException e) {
-      if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState())) {
-        // This is a workaround for the issue where the SQL command fails with "syntax error at or
-        // near "foreign""
-        // This is a known issue in Databricks for older DBSQL versions
-        LOGGER.debug("SQL command failed with syntax error. Returning empty result set.");
+      if (PARSE_SYNTAX_ERROR_SQL_STATE.equals(e.getSQLState()) || isObjectNotFoundException(e)) {
+        LOGGER.debug(
+            "SQL error for getCrossReference ({}), returning empty result set.", e.getSQLState());
         return metadataResultSetBuilder.getCrossRefsResult(new ArrayList<>());
       } else {
         LOGGER.error(
@@ -435,6 +510,20 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
   }
 
   /**
+   * Returns true if any of the provided patterns is an empty string. Empty string patterns generate
+   * invalid LIKE '' clauses that cause server errors. Per JDBC spec, empty string means "without a
+   * name" which matches nothing in Unity Catalog.
+   */
+  private static boolean isEmptyPatternError(String... patterns) {
+    for (String p : patterns) {
+      if ("".equals(p)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Auto-fills the catalog parameter if multiple catalog support is disabled and catalog is null.
    *
    * @param catalog the catalog parameter to auto-fill
@@ -450,6 +539,35 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       return result;
     }
     return catalog;
+  }
+
+  /**
+   * Resolves null catalog/schema for key-based metadata operations to match Thrift server behavior.
+   * When catalog is null, it is replaced with current_catalog and (if schema is also null) schema
+   * is replaced with current_schema. Returns null if the caller should return an empty result set
+   * (table is null, schema is null without catalog also being null, or any resolved value is null).
+   */
+  private String[] resolveKeyBasedParams(
+      String catalog, String schema, String table, IDatabricksSession session) throws SQLException {
+    if (table == null) {
+      return null;
+    }
+
+    if (catalog == null) {
+      String[] currentCatalogAndSchema = session.getCurrentCatalogAndSchema();
+      catalog = currentCatalogAndSchema[0];
+      if (schema == null) {
+        schema = currentCatalogAndSchema[1];
+      }
+    } else if (schema == null) {
+      return null;
+    }
+
+    if (catalog == null || schema == null) {
+      return null;
+    }
+
+    return new String[] {catalog, schema, table};
   }
 
   private DatabricksResultSet getResultSet(

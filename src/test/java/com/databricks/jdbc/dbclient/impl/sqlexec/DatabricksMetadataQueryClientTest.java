@@ -458,6 +458,50 @@ public class DatabricksMetadataQueryClientTest {
         ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows(), 1, description);
   }
 
+  /**
+   * Tests that getSchemas with a JDBC-escaped, mixed-case catalog name returns the unescaped,
+   * lowercased catalog name in the TABLE_CATALOG column. This reproduces the SEA/Thrift parity
+   * issue where SHOW SCHEMAS IN `catalog` doesn't return a catalog column from the server, so the
+   * client populates it from the parameter — which must be unescaped and lowercased.
+   */
+  @Test
+  void testListSchemasWithEscapedUnderscoreCatalog() throws SQLException {
+    String escapedCatalog = "Comparator\\_Tests";
+    String expectedCatalog = "comparator_tests";
+    // CommandBuilder strips escapes for SQL: SHOW SCHEMAS IN `Comparator_Tests`
+    String expectedSQL = "SHOW SCHEMAS IN `Comparator_Tests`";
+
+    when(session.getComputeResource()).thenReturn(mockedComputeResource);
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+    when(mockClient.executeStatement(
+            eq(expectedSQL),
+            eq(mockedComputeResource),
+            any(),
+            eq(StatementType.METADATA),
+            eq(session),
+            any(),
+            any(MetadataOperationType.class)))
+        .thenReturn(mockedResultSet);
+    when(mockedResultSet.next()).thenReturn(true, false);
+    when(mockedResultSet.getObject("databaseName")).thenReturn("default");
+    doReturn(2).when(mockedMetaData).getColumnCount();
+    doReturn(SCHEMA_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(1);
+    doReturn(CATALOG_COLUMN.getResultSetColumnName()).when(mockedMetaData).getColumnName(2);
+    when(mockedResultSet.getMetaData()).thenReturn(mockedMetaData);
+    // SHOW SCHEMAS IN `catalog` doesn't return a catalog column — the client must populate it
+    when(mockedResultSet.findColumn(CATALOG_RESULT_COLUMN.getResultSetColumnName()))
+        .thenThrow(DatabricksSQLException.class);
+
+    DatabricksResultSet actualResult = metadataClient.listSchemas(session, escapedCatalog, null);
+
+    assertTrue(actualResult.next());
+    // TABLE_CATALOG (column 2) should be unescaped and lowercased
+    assertEquals(
+        expectedCatalog,
+        actualResult.getObject(2),
+        "TABLE_CATALOG should be unescaped and lowercased to match Thrift behavior");
+  }
+
   @Test
   void testListSchemasNullCatalog() throws SQLException {
     when(session.getComputeResource()).thenReturn(mockedComputeResource);
@@ -580,9 +624,6 @@ public class DatabricksMetadataQueryClientTest {
         new DatabricksSQLException(
             "syntax error at or near \"foreign\"", PARSE_SYNTAX_ERROR_SQL_STATE);
     when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
-    IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
-    when(mockContext.getEnableMultipleCatalogSupport()).thenReturn(true);
-    when(mockClient.getConnectionContext()).thenReturn(mockContext);
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
     when(mockClient.executeStatement(
             eq(
@@ -715,6 +756,21 @@ public class DatabricksMetadataQueryClientTest {
       assertEquals(METADATA_STATEMENT_ID, actualResult.getStatementId());
       assertEquals(1, ((DatabricksResultSetMetaData) actualResult.getMetaData()).getTotalRows());
     }
+  }
+
+  /**
+   * Tests that getCrossReference returns empty result set (not an exception) when all three
+   * foreign-side parameters are null. Matches Thrift server behavior where null foreign table
+   * delegates to getExportedKeys which returns empty in DBSQL.
+   */
+  @Test
+  void testListCrossReferences_allForeignParamsNull_returnsEmpty() throws Exception {
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+
+    DatabricksResultSet result =
+        metadataClient.listCrossReferences(
+            session, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, null, null, null);
+    assertFalse(result.next(), "Should return empty when all foreign params are null, not throw");
   }
 
   @Test
@@ -887,27 +943,40 @@ public class DatabricksMetadataQueryClientTest {
   }
 
   @Test
-  void testReturnsEmptyResultSetInCaseOfNullCatalog() throws SQLException {
-    IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
-    when(mockContext.getEnableMultipleCatalogSupport()).thenReturn(true);
-    when(mockClient.getConnectionContext()).thenReturn(mockContext);
+  void testKeyBasedOpsReturnEmptyForNullTable() throws SQLException {
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
 
-    // listPrimaryKeys with null catalog should return empty ResultSet
-    DatabricksResultSet primaryKeysResult =
-        metadataClient.listPrimaryKeys(session, null, TEST_SCHEMA, TEST_TABLE);
-    assertNotNull(primaryKeysResult);
-    assertFalse(
-        primaryKeysResult.next(),
-        "Expected empty result set for listPrimaryKeys with null catalog");
+    // null table should return empty for listPrimaryKeys
+    DatabricksResultSet pkResult =
+        metadataClient.listPrimaryKeys(session, TEST_CATALOG, TEST_SCHEMA, null);
+    assertNotNull(pkResult);
+    assertFalse(pkResult.next(), "Expected empty result set for listPrimaryKeys with null table");
 
-    // listImportedKeys with null catalog should return empty ResultSet
-    DatabricksResultSet importedKeysResult =
-        metadataClient.listImportedKeys(session, null, TEST_SCHEMA, TEST_TABLE);
-    assertNotNull(importedKeysResult);
+    // null table should return empty for listImportedKeys
+    DatabricksResultSet ikResult =
+        metadataClient.listImportedKeys(session, TEST_CATALOG, TEST_SCHEMA, null);
+    assertNotNull(ikResult);
+    assertFalse(ikResult.next(), "Expected empty result set for listImportedKeys with null table");
+  }
+
+  @Test
+  void testKeyBasedOpsReturnEmptyForNullSchemaWithExplicitCatalog() throws SQLException {
+    DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
+
+    // schema=null with explicit catalog should return empty (matching Thrift behavior)
+    DatabricksResultSet pkResult =
+        metadataClient.listPrimaryKeys(session, "any_catalog", null, TEST_TABLE);
+    assertNotNull(pkResult);
     assertFalse(
-        importedKeysResult.next(),
-        "Expected empty result set for listImportedKeys with null catalog");
+        pkResult.next(),
+        "Expected empty result set for listPrimaryKeys with null schema and explicit catalog");
+
+    DatabricksResultSet ikResult =
+        metadataClient.listImportedKeys(session, "any_catalog", null, TEST_TABLE);
+    assertNotNull(ikResult);
+    assertFalse(
+        ikResult.next(),
+        "Expected empty result set for listImportedKeys with null schema and explicit catalog");
   }
 
   @Test
@@ -1077,10 +1146,10 @@ public class DatabricksMetadataQueryClientTest {
             eq(MetadataOperationType.GET_TABLES)))
         .thenThrow(exception);
 
-    // This should throw the original exception, not NPE
-    assertThrows(
-        DatabricksSQLException.class,
-        () -> metadataClient.listTables(session, "", null, null, null));
+    // SCHEMA_NOT_FOUND is now treated as "object not found" and returns empty result
+    // instead of throwing — per JDBC spec, non-existent objects should return empty rows
+    DatabricksResultSet result = metadataClient.listTables(session, "", null, null, null);
+    assertNotNull(result);
   }
 
   @Test
@@ -1117,9 +1186,6 @@ public class DatabricksMetadataQueryClientTest {
             "syntax error at or near \"foreign\"", (String) null); // null SQL state
 
     when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
-    IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
-    when(mockContext.getEnableMultipleCatalogSupport()).thenReturn(true);
-    when(mockClient.getConnectionContext()).thenReturn(mockContext);
 
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
     when(mockClient.executeStatement(
@@ -1146,10 +1212,6 @@ public class DatabricksMetadataQueryClientTest {
             "syntax error at or near \"foreign\"", (String) null); // null SQL state
 
     when(session.getComputeResource()).thenReturn(WAREHOUSE_COMPUTE);
-    IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
-    when(mockContext.getEnableMultipleCatalogSupport()).thenReturn(true);
-    when(mockClient.getConnectionContext()).thenReturn(mockContext);
-
     DatabricksMetadataQueryClient metadataClient = new DatabricksMetadataQueryClient(mockClient);
     when(mockClient.executeStatement(
             eq(
