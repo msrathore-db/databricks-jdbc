@@ -29,13 +29,15 @@ permissions:
 
 jobs:
   warm-cache:
-    # Run on Linux only. Maven repository contents (JARs/POMs) are platform-independent.
-    # Windows forked PRs restore this same cache via the restore-keys prefix match.
-    # Note: Windows runners in databricks-protected-runner-group lack bash, which
-    # is required for the OIDC token exchange scripts.
+    # Run on both Linux and Windows. GitHub Actions cache is OS-scoped —
+    # a cache saved on Linux cannot be restored on Windows and vice versa.
+    strategy:
+      fail-fast: false
+      matrix:
+        github-runner: [linux-ubuntu-latest, windows-server-latest]
     runs-on:
       group: databricks-protected-runner-group
-      labels: linux-ubuntu-latest
+      labels: ${{ matrix.github-runner }}
 
     steps:
       - name: Set up JDK
@@ -43,6 +45,10 @@ jobs:
         with:
           java-version: 21
           distribution: 'adopt'
+
+      - name: Enable long paths (Windows)
+        if: runner.os == 'Windows'
+        run: git config --system core.longpaths true
 
       # If PR number provided, checkout only pom.xml files from the fork (security: no source code)
       - name: Checkout PR pom.xml files (sparse)
@@ -176,8 +182,20 @@ jobs:
           find ~/.m2/repository -name '_remote.repositories' -exec sed -i 's/jfrog-central/central/g' {} \;
           echo "Normalized ${COUNT} _remote.repositories markers (jfrog-central -> central)"
 
+      - name: Generate cache key with timestamp
+        id: cache-key
+        shell: bash
+        run: |
+          # Include timestamp so each warmer run creates a new cache entry
+          # (GitHub Actions caches are immutable — can't overwrite existing keys).
+          # The restore step uses prefix 'maven-deps-' to match the latest entry.
+          # Old entries auto-expire after 7 days of no access.
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          POM_HASH=${{ hashFiles('**/pom.xml') }}
+          echo "key=maven-deps-${TIMESTAMP}-${POM_HASH}" >> $GITHUB_OUTPUT
+
       - name: Save Maven dependency cache
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.m2/repository
-          key: maven-deps-${{ hashFiles('**/pom.xml') }}
+          key: ${{ steps.cache-key.outputs.key }}
