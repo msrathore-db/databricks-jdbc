@@ -1170,6 +1170,7 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
   }
 
   private static final String ORG_ID_HEADER = "x-databricks-org-id";
+  private static final String ORG_ID_QUERY_PARAM = "o";
 
   private Map<String, String> parseCustomHeaders(ImmutableMap<String, String> parameters) {
     String filterPrefix = DatabricksJdbcUrlParams.HTTP_HEADERS.getParamName();
@@ -1191,7 +1192,7 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
       try {
         for (NameValuePair param :
             new URIBuilder("http://placeholder" + httpPath).getQueryParams()) {
-          if ("o".equals(param.getName())
+          if (ORG_ID_QUERY_PARAM.equals(param.getName())
               && param.getValue() != null
               && !param.getValue().isEmpty()) {
             headers.put(ORG_ID_HEADER, param.getValue());
@@ -1199,7 +1200,8 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
           }
         }
       } catch (URISyntaxException e) {
-        // Malformed httpPath — skip SPOG header extraction
+        LOGGER.debug(
+            "Malformed httpPath, skipping SPOG org-id header extraction: " + e.getMessage());
       }
     }
 
