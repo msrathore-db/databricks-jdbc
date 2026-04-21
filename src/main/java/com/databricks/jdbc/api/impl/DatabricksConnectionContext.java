@@ -1195,13 +1195,22 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
               && param.getValue() != null
               && !param.getValue().isEmpty()) {
             headers.put(ORG_ID_HEADER, param.getValue());
+            LOGGER.debug(
+                "SPOG header extraction: injecting {}={} (extracted from ?o= in httpPath)",
+                ORG_ID_HEADER,
+                param.getValue());
             break;
           }
         }
       } catch (URISyntaxException e) {
         LOGGER.debug(
-            "Malformed httpPath, skipping SPOG org-id header extraction: " + e.getMessage());
+            "SPOG header extraction: malformed httpPath, skipping org-id extraction: "
+                + e.getMessage());
       }
+    } else {
+      LOGGER.debug(
+          "SPOG header extraction: {} already set by caller, not extracting from httpPath",
+          ORG_ID_HEADER);
     }
 
     return headers;
