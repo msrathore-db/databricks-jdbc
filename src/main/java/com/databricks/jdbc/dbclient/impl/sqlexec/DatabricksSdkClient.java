@@ -676,7 +676,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
       request.setWaitTimeout(ASYNC_TIMEOUT_VALUE);
     } else {
       // Only set timeout if direct results mode is not enabled
-      if (!connectionContext.isSqlExecDirectResultsEnabled()) {
+      if (!connectionContext.getDirectResultMode()) {
         request.setWaitTimeout(SYNC_TIMEOUT_VALUE);
       }
       request.setOnWaitTimeout(ExecuteStatementRequestOnWaitTimeout.CONTINUE);
