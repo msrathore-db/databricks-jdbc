@@ -19,7 +19,6 @@ import com.databricks.sdk.WorkspaceClient;
 import com.databricks.sdk.core.*;
 import com.databricks.sdk.core.commons.CommonsHttpClient;
 import com.databricks.sdk.core.oauth.AzureServicePrincipalCredentialsProvider;
-import com.databricks.sdk.core.oauth.ExternalBrowserCredentialsProvider;
 import com.databricks.sdk.core.oauth.OAuthM2MServicePrincipalCredentialsProvider;
 import com.databricks.sdk.core.oauth.TokenCache;
 import com.databricks.sdk.core.utils.Cloud;
@@ -230,7 +229,8 @@ public class ClientConfigurator implements Closeable {
     }
 
     databricksConfig.setCredentialsProvider(
-        wrapWithTokenFederationIfEnabled(new ExternalBrowserCredentialsProvider(tokenCache)));
+        wrapWithTokenFederationIfEnabled(
+            new com.databricks.jdbc.auth.NonAzureBrowserCredentialsProvider(tokenCache)));
   }
 
   /**

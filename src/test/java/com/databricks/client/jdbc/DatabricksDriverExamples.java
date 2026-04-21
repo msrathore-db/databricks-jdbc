@@ -260,6 +260,80 @@ public class DatabricksDriverExamples {
     con.close();
   }
 
+  @Test
+  void exampleGetCrossReferences_SEA_CaseInsensitive() throws Exception {
+    DriverManager.registerDriver(new Driver());
+
+    String jdbcUrl =
+        "jdbc:databricks://adb-7405613695221181.1.azuredatabricks.net:443/default;"
+            + "transportMode=https;ssl=1;AuthMech=3;"
+            + "httpPath=/sql/1.0/warehouses/0334d56a817a285c;"
+            + "UseThriftClient=0";
+    String token = System.getenv("DATABRICKS_COMPARATOR_TOKEN");
+    Connection con = DriverManager.getConnection(jdbcUrl, "token", token);
+    System.out.println("Connection established (SEA)......");
+
+    // First, query with lowercase to see what the server returns
+    System.out.println("=== Testing lowercase params first ===");
+    ResultSet rsLower =
+        con.getMetaData()
+            .getCrossReference(
+                "comparator_tests",
+                "oss_jdbc_tests",
+                "fk_parent",
+                "comparator_tests",
+                "oss_jdbc_tests",
+                "fk_child");
+    int lowerCount = 0;
+    while (rsLower.next()) {
+      lowerCount++;
+      System.out.println(
+          "  PKTABLE_CAT="
+              + rsLower.getString("PKTABLE_CAT")
+              + " PKTABLE_SCHEM="
+              + rsLower.getString("PKTABLE_SCHEM")
+              + " PKTABLE_NAME="
+              + rsLower.getString("PKTABLE_NAME"));
+    }
+    System.out.println("Lowercase param rows: " + lowerCount);
+    rsLower.close();
+
+    // Now test with UPPERCASE names — this is where the bug should show
+    System.out.println("=== Testing UPPERCASE params ===");
+    ResultSet rs =
+        con.getMetaData()
+            .getCrossReference(
+                "COMPARATOR_TESTS",
+                "OSS_JDBC_TESTS",
+                "FK_PARENT",
+                "COMPARATOR_TESTS",
+                "OSS_JDBC_TESTS",
+                "FK_CHILD");
+
+    System.out.println("=== getCrossReference SEA result (without fix, uppercase params) ===");
+    int rowCount = 0;
+    while (rs.next()) {
+      rowCount++;
+      System.out.println("Row " + rowCount + ":");
+      System.out.println("  PKTABLE_CAT   = " + rs.getString("PKTABLE_CAT"));
+      System.out.println("  PKTABLE_SCHEM = " + rs.getString("PKTABLE_SCHEM"));
+      System.out.println("  PKTABLE_NAME  = " + rs.getString("PKTABLE_NAME"));
+      System.out.println("  FKTABLE_CAT   = " + rs.getString("FKTABLE_CAT"));
+      System.out.println("  FKTABLE_SCHEM = " + rs.getString("FKTABLE_SCHEM"));
+      System.out.println("  FKTABLE_NAME  = " + rs.getString("FKTABLE_NAME"));
+      System.out.println("  FK_NAME       = " + rs.getString("FK_NAME"));
+    }
+    System.out.println("Total rows: " + rowCount);
+    if (rowCount == 0) {
+      System.out.println(
+          "BUG CONFIRMED: SEA returned empty for uppercase params (Thrift would return results)");
+    } else {
+      System.out.println("No bug: SEA returned results for uppercase params");
+    }
+    rs.close();
+    con.close();
+  }
+
   /**
    * Demonstrates how to handle complex data types (Array, Map, Struct) when Arrow client is used
    * (default arrow-based fetch).

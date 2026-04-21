@@ -165,6 +165,24 @@ public class CrossReferenceKeysDatabricksResultSetAdapterTest {
   }
 
   @Test
+  public void testIncludeRowMatchesUppercaseFromServer() throws SQLException {
+    List<ResultColumn> columns = new ArrayList<>();
+
+    // Adapter constructed with mixed case (via setUp), server returns uppercase
+    when(mockResultSet.getString(PARENT_CATALOG_NAME.getResultSetColumnName()))
+        .thenReturn("TARGETCATALOG");
+    when(mockResultSet.getString(PARENT_NAMESPACE_NAME.getResultSetColumnName()))
+        .thenReturn("TARGETSCHEMA");
+    when(mockResultSet.getString(PARENT_TABLE_NAME.getResultSetColumnName()))
+        .thenReturn("TARGETTABLE");
+
+    boolean result = crossRefAdapter.includeRow(mockResultSet, columns);
+
+    assertTrue(
+        result, "includeRow should match case-insensitively to align with Thrift server behavior");
+  }
+
+  @Test
   public void testInheritanceFromImportedKeysAdapter() {
     assertInstanceOf(ImportedKeysDatabricksResultSetAdapter.class, crossRefAdapter);
   }
