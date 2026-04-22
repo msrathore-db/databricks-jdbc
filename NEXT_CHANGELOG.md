@@ -25,7 +25,6 @@
 - Fixed `getColumnClassName()` returning null for VARIANT columns in SEA mode by adding VARIANT to the type system.
 - Fixed `getColumns()` returning `DATA_TYPE=0` (NULL) for GEOMETRY/GEOGRAPHY columns in Thrift mode. Now returns `Types.VARCHAR` (12) when geospatial is disabled and `Types.OTHER` (1111) when enabled, consistent with SEA mode.
 - Fixed `getCrossReference()` returning 0 rows when parent args are passed in uppercase. The client-side filter used case-sensitive comparison against server-returned lowercase names.
-- Fixed `Statement.execute()` incorrectly returning `true` and `getUpdateCount()` returning `-1` for DML statements (`INSERT` / `UPDATE` / `DELETE` / `MERGE`, including `INSERT OVERWRITE`) whose subqueries or CTEs contain `UNION`, `INTERSECT`, or `EXCEPT`. Also fixes the same mis-classification for the Databricks column-exclusion form `SELECT * EXCEPT (col)` when used inside a DML. DML statements are now short-circuited to update-count mode before the non-anchored set-operator regexes are evaluated, matching the JDBC spec and restoring compatibility with frameworks (e.g. Slick) that use `!execute()` to detect DML. ([#1418](https://github.com/databricks/databricks-jdbc/issues/1418))
 
 ---
 *Note: When making changes, please add your change under the appropriate section
