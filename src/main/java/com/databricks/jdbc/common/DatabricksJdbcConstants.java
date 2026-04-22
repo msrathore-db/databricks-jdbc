@@ -177,6 +177,14 @@ public final class DatabricksJdbcConstants {
   public static final Pattern CALL_PATTERN =
       Pattern.compile("^(\\s*\\()*\\s*CALL", Pattern.CASE_INSENSITIVE);
 
+  /**
+   * Matches statements whose leading keyword is a DML (INSERT / UPDATE / DELETE / MERGE). Unlike
+   * {@link #INSERT_PATTERN} this also accepts {@code INSERT OVERWRITE ...} (not just {@code INSERT
+   * INTO ...}) and does not share the batching parser's expectations, so it is safe to broaden.
+   */
+  public static final Pattern DML_PREFIX_PATTERN =
+      Pattern.compile("^(\\s*\\()*\\s*(INSERT|UPDATE|DELETE|MERGE)\\s+", Pattern.CASE_INSENSITIVE);
+
   /** Maximum number of parameters allowed in a single Databricks query */
   public static final int MAX_QUERY_PARAMETERS = 256;
 

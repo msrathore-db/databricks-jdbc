@@ -770,6 +770,15 @@ public class DatabricksStatement implements IDatabricksStatement, IDatabricksSta
       return true;
     }
 
+    // DML statements (INSERT / UPDATE / DELETE / MERGE) always return an update count per the
+    // JDBC spec, even when their subqueries or CTEs contain UNION / INTERSECT / EXCEPT. Without
+    // this short-circuit the non-anchored UNION_PATTERN et al. below match anywhere in the SQL
+    // and mis-classify DML — including the column-exclusion form `SELECT * EXCEPT (col)`. See
+    // https://github.com/databricks/databricks-jdbc/issues/1418.
+    if (DML_PREFIX_PATTERN.matcher(trimmedQuery).find()) {
+      return false;
+    }
+
     // Check if the query matches any of the patterns that return a ResultSet
     return SELECT_PATTERN.matcher(trimmedQuery).find()
         || SHOW_PATTERN.matcher(trimmedQuery).find()
