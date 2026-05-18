@@ -770,14 +770,7 @@ public class DatabricksStatement implements IDatabricksStatement, IDatabricksSta
       return true;
     }
 
-    // Match any of the anchored patterns for top-level queryPrimary forms (SELECT / TABLE /
-    // VALUES / WITH / FROM / …) and other ResultSet-producing statements. Each pattern is
-    // anchored at the start of the trimmed query, after optional leading parens. Top-level
-    // UNION / INTERSECT / EXCEPT shapes always begin with one of these prefixes, so the
-    // set-operator keywords are not matched independently — this prevents misclassification
-    // of DML (INSERT / UPDATE / DELETE / MERGE / COPY) whose subqueries or CTEs contain
-    // those keywords, and of the column-exclusion form `SELECT * EXCEPT (col)`. See
-    // https://github.com/databricks/databricks-jdbc/issues/1418.
+    // Check if the query matches any of the patterns that return a ResultSet
     return SELECT_PATTERN.matcher(trimmedQuery).find()
         || SHOW_PATTERN.matcher(trimmedQuery).find()
         || DESCRIBE_PATTERN.matcher(trimmedQuery).find()
