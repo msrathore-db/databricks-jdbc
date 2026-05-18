@@ -770,16 +770,14 @@ public class DatabricksStatement implements IDatabricksStatement, IDatabricksSta
       return true;
     }
 
-    // DML statements (INSERT / UPDATE / DELETE / MERGE) always return an update count per the
-    // JDBC spec, even when their subqueries or CTEs contain UNION / INTERSECT / EXCEPT. Without
-    // this short-circuit the non-anchored UNION_PATTERN et al. below match anywhere in the SQL
-    // and mis-classify DML — including the column-exclusion form `SELECT * EXCEPT (col)`. See
+    // Match any of the anchored patterns for top-level queryPrimary forms (SELECT / TABLE /
+    // VALUES / WITH / FROM / …) and other ResultSet-producing statements. Each pattern is
+    // anchored at the start of the trimmed query, after optional leading parens. Top-level
+    // UNION / INTERSECT / EXCEPT shapes always begin with one of these prefixes, so the
+    // set-operator keywords are not matched independently — this prevents misclassification
+    // of DML (INSERT / UPDATE / DELETE / MERGE / COPY) whose subqueries or CTEs contain
+    // those keywords, and of the column-exclusion form `SELECT * EXCEPT (col)`. See
     // https://github.com/databricks/databricks-jdbc/issues/1418.
-    if (DML_PREFIX_PATTERN.matcher(trimmedQuery).find()) {
-      return false;
-    }
-
-    // Check if the query matches any of the patterns that return a ResultSet
     return SELECT_PATTERN.matcher(trimmedQuery).find()
         || SHOW_PATTERN.matcher(trimmedQuery).find()
         || DESCRIBE_PATTERN.matcher(trimmedQuery).find()
@@ -789,9 +787,7 @@ public class DatabricksStatement implements IDatabricksStatement, IDatabricksSta
         || MAP_PATTERN.matcher(trimmedQuery).find()
         || FROM_PATTERN.matcher(trimmedQuery).find()
         || VALUES_PATTERN.matcher(trimmedQuery).find()
-        || UNION_PATTERN.matcher(trimmedQuery).find()
-        || INTERSECT_PATTERN.matcher(trimmedQuery).find()
-        || EXCEPT_PATTERN.matcher(trimmedQuery).find()
+        || TABLE_PATTERN.matcher(trimmedQuery).find()
         || DECLARE_PATTERN.matcher(trimmedQuery).find()
         || PUT_PATTERN.matcher(trimmedQuery).find()
         || GET_PATTERN.matcher(trimmedQuery).find()

@@ -665,6 +665,33 @@ public class DatabricksStatementTest {
     assertTrue(DatabricksStatement.shouldReturnResultSet(query, Collections.emptyList()));
   }
 
+  // Regression guards for the `TABLE table_name` queryPrimary form in Spark SQL. These shapes
+  // were previously classified via the non-anchored UNION_PATTERN; removing that pattern
+  // requires explicit anchored coverage via TABLE_PATTERN.
+  @Test
+  public void testShouldReturnResultSet_TableUnionTable() {
+    String query = "TABLE my_catalog.my_schema.foo UNION TABLE my_catalog.my_schema.bar";
+    assertTrue(
+        DatabricksStatement.shouldReturnResultSet(query, Collections.emptyList()),
+        "TABLE foo UNION TABLE bar must be classified as ResultSet");
+  }
+
+  @Test
+  public void testShouldReturnResultSet_ParenthesizedTableUnionTable() {
+    String query = "(TABLE foo) UNION (TABLE bar)";
+    assertTrue(
+        DatabricksStatement.shouldReturnResultSet(query, Collections.emptyList()),
+        "(TABLE foo) UNION (TABLE bar) must be classified as ResultSet");
+  }
+
+  @Test
+  public void testShouldReturnResultSet_BareTableQuery() {
+    String query = "TABLE my_catalog.my_schema.foo";
+    assertTrue(
+        DatabricksStatement.shouldReturnResultSet(query, Collections.emptyList()),
+        "Bare TABLE foo must be classified as ResultSet");
+  }
+
   @Test
   public void testShouldReturnResultSet_PutQuery() {
     String query = "PUT some_data INTO table;";
