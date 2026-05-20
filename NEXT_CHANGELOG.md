@@ -2,29 +2,54 @@
 
 ## [Unreleased]
 
+### BREAKING CHANGES in 3.4.1 — Metadata JDBC Spec Compliance
+
+This release unifies metadata behavior across Thrift and SQL Exec API backends
+using SQL SHOW commands for all metadata operations on SQL warehouses. Several
+non-spec-compliant behaviors have been corrected. Review the changes below before
+upgrading. These changes do not affect metadata on All-Purpose Clusters.
+
+* **`getTables`/`getColumns`/`getSchemas`: Catalog parameter is now treated as
+  an exact-match identifier per JDBC spec.** Passing `%` or wildcard patterns as
+  catalog previously returned results across all catalogs.
+  Use `null` to search all catalogs.
+
+* **`getTables` with empty types array: Now returns zero rows per JDBC spec.**
+  Use `null` to return all types.
+
+* **`getSchemas`: Now includes `information_schema` in results.** Excludes
+  `global_temp` schema (previously returned by Thrift for all catalogs).
+
+* **`getPrimaryKeys`/`getImportedKeys`/`getCrossReference` with non-existent
+  catalog, schema, or table: Now returns empty `ResultSet` instead of throwing
+  `SQLException`.**
+
+* **`getImportedKeys` `UPDATE_RULE`/`DELETE_RULE`: Now returns `3` (`NO_ACTION`)
+  instead of `0` (`CASCADE`) for Thrift, and `3` instead of `null` for SEA.**
+  This reflects that Unity Catalog foreign keys are informational and non-enforced.
+
+* **Native geospatial type support (`GEOMETRY` and `GEOGRAPHY`) is now enabled
+  by default.** `getObject()` now returns `IGeometry`/`IGeography` instances
+  instead of EWKT strings. Set `EnableGeoSpatialSupport=0` to restore the
+  previous behavior.
+
 ### Added
-- Added `CallableStatement` support with IN parameters. `Connection.prepareCall()` now returns a working `DatabricksCallableStatement` that supports positional parameter binding and execution via `{call proc(?)}` JDBC escape syntax. OUT/INOUT parameters and named parameters throw `SQLFeatureNotSupportedException`.
-- Added AI coding agent detection to the User-Agent header. When the driver is invoked by a known AI coding agent (e.g. Claude Code, Cursor, Gemini CLI), `agent/<product>` is appended to the User-Agent string.
+- Metadata operations now use SQL SHOW commands for both Thrift and SEA backends,
+  ensuring consistent behavior for SQL warehouses regardless of underlying
+  protocol. To revert to native Thrift metadata RPCs, set `UseQueryForMetadata=0`.
 
 ### Updated
-- **[Breaking Change]** Thrift-mode metadata operations (`getTables`, `getColumns`, `getSchemas`, `getFunctions`, `getPrimaryKeys`, `getImportedKeys`, `getCrossReference`) on **SQL Warehouses** now use SQL SHOW commands by default instead of native Thrift RPCs, aligning behavior with Statement Execution API (SEA) mode. All-Purpose Clusters are unaffected and continue using native Thrift RPCs. The `UseQueryForMetadata` connection property default changed from `0` to `1`. To revert to native Thrift RPCs, set `UseQueryForMetadata=0`. Key behavioral changes:
-  - Catalog parameter is now treated as a literal identifier (not a wildcard pattern) per JDBC spec. Use `null` to search across all catalogs.
-  - Methods that previously threw exceptions for null/empty edge-case inputs now return empty result sets.
-  - `getFunctions` now works correctly (was broken via native Thrift RPC).
-  - Result columns (TABLE_CATALOG, etc.) return stored values (lowercase) instead of preserving input case.
-- Connection properties `EnableShowCommandForGetFunctions` and `TreatMetadataCatalogNameAsPattern` are now redundant when `UseQueryForMetadata=1` (the new default).
+- `getColumnTypeName()` for DECIMAL columns now preserves precision/scale suffix (e.g., `"DECIMAL(10,2)"`) consistently across both Thrift and SEA backends.
+- `EnableGeoSpatialSupport` no longer requires `EnableComplexDatatypeSupport=1`. Geospatial types (GEOMETRY, GEOGRAPHY) can now be enabled independently of complex type support (ARRAY, MAP, STRUCT).
+- Arrow schema deserialization failures (Thrift metadata path) now surface a dedicated driver error code `ARROW_SCHEMA_PARSING_ERROR` (vendor code `22000`) and a proper SQLSTATE `22000` (Data Exception) on the thrown `SQLException`, instead of the generic `RESULT_SET_ERROR` (1004) and the enum name as SQLSTATE. The exception message is unchanged.
+- When a Statement is re-executed, the previous server-side operation is now explicitly closed before starting the new execution, preventing orphaned server-side operations when Statements are reused.
+- Server-side operations are now closed proactively when `ResultSet.close()` is called, improving resource utilization. The client-side Statement remains open and reusable for re-execution. As a result, `getExecutionResult()` after result consumption returns the cached ResultSet instead of making a server RPC.
 
 ### Fixed
-- Fixed `EnableBatchedInserts` silently falling back to individual execution when table or schema names contain special characters (e.g., hyphens) inside backtick-quoted identifiers. Added a warn log when the fallback occurs.
-- Fixed `IntervalConverter` crash (`IllegalArgumentException: Invalid interval metadata`) when INTERVAL columns are returned via CloudFetch. Arrow metadata from CloudFetch uses underscored format (`INTERVAL_YEAR_MONTH`, `INTERVAL_DAY_TIME`) which the driver's regex did not accept.
-- Fixed `Statement` being prematurely closed after queries that return inline results, which prevented re-execution, `getResultSet()`, and `getExecutionResult()` from working. Statements now remain open and reusable until explicitly closed by the caller.
-- Fixed primitive types within complex types (ARRAY, MAP, STRUCT) not being correctly parsed when Arrow serialization uses alternate formats: TIMESTAMP/TIMESTAMP_NTZ as epoch microseconds or component arrays, and BINARY as base64-encoded strings.
-- Fixed `PARSE_SYNTAX_ERROR` for column names containing special characters (e.g., dots) when `EnableBatchedInserts` is enabled, by re-quoting column names with backticks in reconstructed multi-row INSERT statements.
-- Fixed Volume ingestion for SEA mode, which was broken due to statement being closed prematurely.
-- Fixed escaped pattern characters in catalogName for `getSchemas`, as returned catalogName should be unescaped.
-- Fixed `getColumnClassName()` returning null for VARIANT columns in SEA mode by adding VARIANT to the type system.
-- Fixed `getColumns()` returning `DATA_TYPE=0` (NULL) for GEOMETRY/GEOGRAPHY columns in Thrift mode. Now returns `Types.VARCHAR` (12) when geospatial is disabled and `Types.OTHER` (1111) when enabled, consistent with SEA mode.
-- Fixed `getCrossReference()` returning 0 rows when parent args are passed in uppercase. The client-side filter used case-sensitive comparison against server-returned lowercase names.
+- Fixed `DatabaseMetaData.getTables()` in Thrift mode returning rows when called with an empty `types` array. Per JDBC spec, empty types means "no types selected" and now correctly returns zero rows (matching SEA mode).
+- Fixed `?` characters inside SQL comments, string literals, and quoted identifiers being incorrectly counted as parameter placeholders when `supportManyParameters=1`. `SQLInterpolator` now uses `SqlCommentParser` to locate only real placeholders. Fixes #1331.
+- Fixed `MetadataOperationTimeout` not being applied when metadata operations use SHOW commands. Operations like `getTables`, `getSchemas`, and `getColumns` now respect the `MetadataOperationTimeout` connection property instead of hanging indefinitely with no timeout.
+- Reclassify transient server errors to standard SQL states (08S01, 40001) across all Thrift error sites. This ensures UC unavailability and concurrent modification errors surface consistently for better retry handling. Note: Dashboards and branching logic keyed on legacy XXUCC or 42000 must be updated.
 
 ---
 *Note: When making changes, please add your change under the appropriate section

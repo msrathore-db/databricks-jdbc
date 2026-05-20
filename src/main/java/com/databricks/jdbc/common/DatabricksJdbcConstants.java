@@ -109,6 +109,22 @@ public final class DatabricksJdbcConstants {
   public static final String GCP_GOOGLE_ID_AUTH_TYPE = "google-id";
   public static final String DEFAULT_HTTP_EXCEPTION_SQLSTATE = "08000";
   public static final String QUERY_EXECUTION_TIMEOUT_SQLSTATE = "57KD0";
+
+  /** Standard SQL state for operation cancelled (SQLSTATE HY008). */
+  public static final String OPERATION_CANCELLED_SQLSTATE = "HY008";
+
+  /** Standard SQL state for communication link failure (SQLSTATE 08S01). */
+  public static final String COMMUNICATION_LINK_FAILURE_SQLSTATE = "08S01";
+
+  /**
+   * Standard SQL state for transaction rollback - serialization failure (SQLSTATE 40001). Used for
+   * concurrent-modification errors where the operation is potentially retryable.
+   */
+  public static final String SERIALIZATION_FAILURE_SQLSTATE = "40001";
+
+  /** Standard SQL state for data exception (SQLSTATE 22000). */
+  public static final String DATA_EXCEPTION_SQLSTATE = "22000";
+
   public static final int TEMPORARY_REDIRECT_STATUS_CODE = 307;
   public static final String REDACTED_TOKEN = "****";
   public static final String QUERY_TAGS = "query_tags";

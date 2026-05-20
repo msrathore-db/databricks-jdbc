@@ -130,8 +130,8 @@ public enum DatabricksJdbcUrlParams {
       "0"),
   ENABLE_GEOSPATIAL_SUPPORT(
       "EnableGeoSpatialSupport",
-      "flag to enable native support of GEOMETRY and GEOGRAPHY data types. Requires EnableComplexDatatypeSupport=1",
-      "0"),
+      "flag to enable native support of GEOMETRY and GEOGRAPHY data types",
+      "1"),
   ROWS_FETCHED_PER_BLOCK(
       "RowsFetchedPerBlock",
       "The maximum number of rows that a query returns at a time.",
