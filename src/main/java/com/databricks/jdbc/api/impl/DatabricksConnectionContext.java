@@ -1322,6 +1322,11 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
   private static final String ORG_ID_HEADER = "x-databricks-org-id";
   private static final String ORG_ID_QUERY_PARAM = "o";
 
+  // Matches the workspace ID inside an all-purpose-compute Thrift path of the form
+  // [/]sql/protocolv1/o/<workspace-id>/<cluster-id>[/...][?...].
+  private static final java.util.regex.Pattern CLUSTER_PATH_ORG_ID_PATTERN =
+      java.util.regex.Pattern.compile("(?:^|/)sql/protocolv1/o/(\\d+)/[^/?]+");
+
   private Map<String, String> parseCustomHeaders(ImmutableMap<String, String> parameters) {
     String filterPrefix = DatabricksJdbcUrlParams.HTTP_HEADERS.getParamName();
 
@@ -1334,7 +1339,11 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
                         entry -> entry.getKey().substring(filterPrefix.length()),
                         Map.Entry::getValue)));
 
-    // Extract org ID from ?o= in httpPath for SPOG routing
+    // Extract org ID for SPOG routing. Two sources, in priority order:
+    //   1. ?o=<wsid> query parameter in httpPath (warehouse paths typically use this)
+    //   2. /sql/protocolv1/o/<wsid>/<cluster> path segment (all-purpose cluster paths)
+    // Without this, non-Thrift endpoints (e.g. /telemetry-ext) lack workspace context on
+    // SPOG hosts and PoPP redirects them to /login.
     if (!headers.containsKey(ORG_ID_HEADER)) {
       String httpPath =
           parameters.getOrDefault(
@@ -1357,6 +1366,18 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
         LOGGER.debug(
             "SPOG header extraction: malformed httpPath, skipping org-id extraction: "
                 + e.getMessage());
+      }
+
+      if (!headers.containsKey(ORG_ID_HEADER) && !httpPath.isEmpty()) {
+        Matcher clusterMatch = CLUSTER_PATH_ORG_ID_PATTERN.matcher(httpPath);
+        if (clusterMatch.find()) {
+          String orgId = clusterMatch.group(1);
+          headers.put(ORG_ID_HEADER, orgId);
+          LOGGER.debug(
+              "SPOG header extraction: injecting {}={} (extracted from cluster path segment)",
+              ORG_ID_HEADER,
+              orgId);
+        }
       }
     } else {
       LOGGER.debug(

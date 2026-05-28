@@ -1459,6 +1459,80 @@ class DatabricksConnectionContextTest {
   }
 
   @Test
+  void testSpogContext_extractsOrgIdFromClusterPathSegment() throws DatabricksSQLException {
+    // All-purpose-compute Thrift path embeds the workspace ID in /o/<wsid>/<cluster>.
+    // No ?o= query param — driver should still extract org-id so non-Thrift endpoints
+    // (e.g. /telemetry-ext) get the x-databricks-org-id header on SPOG hosts.
+    String url =
+        "jdbc:databricks://spog.cloud.databricks.com/default;ssl=1;AuthMech=3;"
+            + "httpPath=sql/protocolv1/o/6051921418418893/0528-220959-uzmcn1qt";
+    Properties props = new Properties();
+    props.put("user", "token");
+    props.put("password", "test-token");
+    IDatabricksConnectionContext ctx = DatabricksConnectionContext.parse(url, props);
+
+    Map<String, String> headers = ctx.getCustomHeaders();
+    assertEquals("6051921418418893", headers.get("x-databricks-org-id"));
+  }
+
+  @Test
+  void testSpogContext_clusterPathWithLeadingSlashAlsoExtracts() throws DatabricksSQLException {
+    String url =
+        "jdbc:databricks://spog.cloud.databricks.com/default;ssl=1;AuthMech=3;"
+            + "httpPath=/sql/protocolv1/o/6051921418418893/0528-220959-uzmcn1qt";
+    Properties props = new Properties();
+    props.put("user", "token");
+    props.put("password", "test-token");
+    IDatabricksConnectionContext ctx = DatabricksConnectionContext.parse(url, props);
+
+    assertEquals("6051921418418893", ctx.getCustomHeaders().get("x-databricks-org-id"));
+  }
+
+  @Test
+  void testSpogContext_queryParamWinsOverClusterPathSegment() throws DatabricksSQLException {
+    // ?o= takes precedence when both forms are present (matches priority order in the code).
+    String url =
+        "jdbc:databricks://spog.cloud.databricks.com/default;ssl=1;AuthMech=3;"
+            + "httpPath=sql/protocolv1/o/111/0528-220959-uzmcn1qt?o=222";
+    Properties props = new Properties();
+    props.put("user", "token");
+    props.put("password", "test-token");
+    IDatabricksConnectionContext ctx = DatabricksConnectionContext.parse(url, props);
+
+    assertEquals("222", ctx.getCustomHeaders().get("x-databricks-org-id"));
+  }
+
+  @Test
+  void testSpogContext_explicitHeaderTakesPrecedenceOverClusterPath()
+      throws DatabricksSQLException {
+    String url =
+        "jdbc:databricks://spog.cloud.databricks.com/default;ssl=1;AuthMech=3;"
+            + "httpPath=sql/protocolv1/o/111/0528-220959-uzmcn1qt;"
+            + "http.header.x-databricks-org-id=fromheader";
+    Properties props = new Properties();
+    props.put("user", "token");
+    props.put("password", "test-token");
+    IDatabricksConnectionContext ctx = DatabricksConnectionContext.parse(url, props);
+
+    assertEquals("fromheader", ctx.getCustomHeaders().get("x-databricks-org-id"));
+  }
+
+  @Test
+  void testSpogContext_warehousePathWithoutQueryParamHasNoOrgId() throws DatabricksSQLException {
+    // Warehouse paths never embed the workspace ID, so without ?o= no header is set.
+    // Regression guard for the cluster-path fallback (it must not match warehouse paths).
+    String url =
+        "jdbc:databricks://spog.cloud.databricks.com/default;ssl=1;AuthMech=3;"
+            + "httpPath=/sql/1.0/warehouses/abc123";
+    Properties props = new Properties();
+    props.put("user", "token");
+    props.put("password", "test-token");
+    IDatabricksConnectionContext ctx = DatabricksConnectionContext.parse(url, props);
+
+    assertFalse(ctx.getCustomHeaders().containsKey("x-databricks-org-id"));
+  }
+
+  @Test
   public void testDefaultGetterCoverage() throws DatabricksSQLException {
     IDatabricksConnectionContext ctx =
         DatabricksConnectionContext.parse(TestConstants.VALID_URL_1, properties);
