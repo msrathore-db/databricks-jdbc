@@ -149,7 +149,7 @@ public class DatabricksResultSetMetaDataTest {
   @Test
   public void testColumnsWithTimestampNTZ_legacyTypeNameDisabled() throws SQLException {
     // With EnableTimestampNtzTypeName=0 the type name is normalized to TIMESTAMP to
-    // match the legacy (Simba) driver behavior. The java.sql type is unchanged.
+    // match the legacy (v2.x.x) driver behavior. The java.sql type is unchanged.
     IDatabricksConnectionContext legacyContext = Mockito.mock(IDatabricksConnectionContext.class);
     when(legacyContext.getDefaultStringColumnLength()).thenReturn(255);
     when(legacyContext.isTimestampNtzTypeNameEnabled()).thenReturn(false);

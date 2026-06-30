@@ -140,7 +140,7 @@ public enum DatabricksJdbcUrlParams {
       "EnableTimestampNtzTypeName",
       "When enabled (default), ResultSetMetaData.getColumnTypeName() reports "
           + "\"TIMESTAMP_NTZ\" for TIMESTAMP_NTZ columns. Set to 0 to report "
-          + "\"TIMESTAMP\" instead, matching the legacy (Simba) driver behavior.",
+          + "\"TIMESTAMP\" instead, matching the legacy (v2.x.x) driver behavior.",
       "1"),
   ROWS_FETCHED_PER_BLOCK(
       "RowsFetchedPerBlock",

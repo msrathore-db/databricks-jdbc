@@ -96,7 +96,7 @@ public class DatabricksResultSetMetaData implements ResultSetMetaData {
           // resolves to Types.TIMESTAMP. By default the "TIMESTAMP_NTZ" typeText is
           // preserved so getColumnTypeName() reports the actual server type
           // (see GitHub issue #1495); when EnableTimestampNtzTypeName=0 it is
-          // normalized to "TIMESTAMP" to match the legacy (Simba) driver.
+          // normalized to "TIMESTAMP" to match the legacy (v2.x.x) driver.
           if (columnInfo.getTypeText().equalsIgnoreCase(TIMESTAMP_NTZ)) {
             columnTypeName = ColumnInfoTypeName.TIMESTAMP;
             if (!ctx.isTimestampNtzTypeNameEnabled()) {
@@ -222,7 +222,7 @@ public class DatabricksResultSetMetaData implements ResultSetMetaData {
                   : getTypeTextFromTypeDesc(columnDesc.getTypeDesc());
 
           // Normalize TIMESTAMP_NTZ to TIMESTAMP only when the type-name feature is
-          // disabled (legacy/Simba parity); by default the NTZ type name is preserved
+          // disabled (legacy/v2.x.x parity); by default the NTZ type name is preserved
           // (see GitHub issue #1495).
           if (columnTypeText != null
               && columnTypeText.equalsIgnoreCase(TIMESTAMP_NTZ)
@@ -472,7 +472,7 @@ public class DatabricksResultSetMetaData implements ResultSetMetaData {
       ColumnInfoTypeName columnTypeName = DatabricksTypeUtil.getColumnInfoType(baseTypeName);
 
       // By default the TIMESTAMP_NTZ type name is preserved (see GitHub issue #1495);
-      // normalize it to TIMESTAMP only when EnableTimestampNtzTypeName=0 (legacy/Simba parity).
+      // normalize it to TIMESTAMP only when EnableTimestampNtzTypeName=0 (legacy/v2.x.x parity).
       if (baseTypeName.equals(TIMESTAMP_NTZ) && !ctx.isTimestampNtzTypeNameEnabled()) {
         columnTypeText = TIMESTAMP;
       }
