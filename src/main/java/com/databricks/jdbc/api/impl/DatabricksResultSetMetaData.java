@@ -90,12 +90,18 @@ public class DatabricksResultSetMetaData implements ResultSetMetaData {
       if (resultManifest.getSchema().getColumnCount() > 0) {
         for (ColumnInfo columnInfo : resultManifest.getSchema().getColumns()) {
           ColumnInfoTypeName columnTypeName = columnInfo.getTypeName();
-          // For TIMESTAMP_NTZ columns, getTypeName() returns null.
-          // use typeText (initially "TIMESTAMP_NTZ") to identify the type,
-          // overwrite it to "TIMESTAMP" to maintain parity with thrift output.
+          // For TIMESTAMP_NTZ columns, getTypeName() returns null because the SDK
+          // ColumnInfoTypeName enum has no TIMESTAMP_NTZ value. Use typeText to
+          // identify the type and map it to the TIMESTAMP enum so the java.sql type
+          // resolves to Types.TIMESTAMP. By default the "TIMESTAMP_NTZ" typeText is
+          // preserved so getColumnTypeName() reports the actual server type
+          // (see GitHub issue #1495); when EnableTimestampNtzTypeName=0 it is
+          // normalized to "TIMESTAMP" to match the legacy (Simba) driver.
           if (columnInfo.getTypeText().equalsIgnoreCase(TIMESTAMP_NTZ)) {
             columnTypeName = ColumnInfoTypeName.TIMESTAMP;
-            columnInfo.setTypeText(TIMESTAMP);
+            if (!ctx.isTimestampNtzTypeNameEnabled()) {
+              columnInfo.setTypeText(TIMESTAMP);
+            }
           }
 
           // Check if we need to convert geospatial types to string when geospatial support is
@@ -215,8 +221,12 @@ public class DatabricksResultSetMetaData implements ResultSetMetaData {
                   ? arrowMetadata.get(columnIndex)
                   : getTypeTextFromTypeDesc(columnDesc.getTypeDesc());
 
-          // Normalize TIMESTAMP_NTZ to TIMESTAMP for consistency with SEA path
-          if (columnTypeText != null && columnTypeText.equalsIgnoreCase(TIMESTAMP_NTZ)) {
+          // Normalize TIMESTAMP_NTZ to TIMESTAMP only when the type-name feature is
+          // disabled (legacy/Simba parity); by default the NTZ type name is preserved
+          // (see GitHub issue #1495).
+          if (columnTypeText != null
+              && columnTypeText.equalsIgnoreCase(TIMESTAMP_NTZ)
+              && !ctx.isTimestampNtzTypeNameEnabled()) {
             columnTypeText = TIMESTAMP;
           }
 
@@ -461,8 +471,9 @@ public class DatabricksResultSetMetaData implements ResultSetMetaData {
       String baseTypeName = metadataResultSetBuilder.stripBaseTypeName(columnTypeText);
       ColumnInfoTypeName columnTypeName = DatabricksTypeUtil.getColumnInfoType(baseTypeName);
 
-      // Normalize columnTypeText for types that have a canonical display name
-      if (baseTypeName.equals(TIMESTAMP_NTZ)) {
+      // By default the TIMESTAMP_NTZ type name is preserved (see GitHub issue #1495);
+      // normalize it to TIMESTAMP only when EnableTimestampNtzTypeName=0 (legacy/Simba parity).
+      if (baseTypeName.equals(TIMESTAMP_NTZ) && !ctx.isTimestampNtzTypeNameEnabled()) {
         columnTypeText = TIMESTAMP;
       }
 

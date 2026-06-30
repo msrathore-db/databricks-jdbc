@@ -2,6 +2,7 @@ package com.databricks.jdbc.api.impl;
 
 import static com.databricks.jdbc.common.Nullable.NULLABLE;
 import static com.databricks.jdbc.common.util.DatabricksTypeUtil.TIMESTAMP;
+import static com.databricks.jdbc.common.util.DatabricksTypeUtil.TIMESTAMP_NTZ;
 import static com.databricks.jdbc.common.util.DatabricksTypeUtil.VARIANT;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -43,6 +44,8 @@ public class DatabricksResultSetMetaDataTest {
   void setUp() {
     connectionContext = Mockito.mock(IDatabricksConnectionContext.class);
     when(connectionContext.getDefaultStringColumnLength()).thenReturn(255);
+    // Production default: report TIMESTAMP_NTZ type names (EnableTimestampNtzTypeName=1).
+    when(connectionContext.isTimestampNtzTypeNameEnabled()).thenReturn(true);
     DatabricksThreadContextHolder.setConnectionContext(connectionContext);
   }
 
@@ -135,9 +138,34 @@ public class DatabricksResultSetMetaDataTest {
         new DatabricksResultSetMetaData(STATEMENT_ID, resultManifest, false, connectionContext);
     assertEquals(1, metaData.getColumnCount());
     assertEquals("timestamp_ntz", metaData.getColumnName(1));
-    assertEquals(TIMESTAMP, metaData.getColumnTypeName(1));
+    // The TIMESTAMP_NTZ type text must be preserved (see GitHub issue #1495);
+    // it previously was normalized to TIMESTAMP. The java.sql type is still
+    // Types.TIMESTAMP because TIMESTAMP_NTZ is a timestamp without timezone.
+    assertEquals(TIMESTAMP_NTZ, metaData.getColumnTypeName(1));
     assertEquals(Types.TIMESTAMP, metaData.getColumnType(1));
     assertEquals(10, metaData.getTotalRows());
+  }
+
+  @Test
+  public void testColumnsWithTimestampNTZ_legacyTypeNameDisabled() throws SQLException {
+    // With EnableTimestampNtzTypeName=0 the type name is normalized to TIMESTAMP to
+    // match the legacy (Simba) driver behavior. The java.sql type is unchanged.
+    IDatabricksConnectionContext legacyContext = Mockito.mock(IDatabricksConnectionContext.class);
+    when(legacyContext.getDefaultStringColumnLength()).thenReturn(255);
+    when(legacyContext.isTimestampNtzTypeNameEnabled()).thenReturn(false);
+
+    ResultManifest resultManifest = new ResultManifest();
+    resultManifest.setTotalRowCount(10L);
+    ResultSchema schema = new ResultSchema();
+    schema.setColumnCount(1L);
+    schema.setColumns(List.of(getColumn("timestamp_ntz", null, "TIMESTAMP_NTZ")));
+    resultManifest.setSchema(schema);
+
+    DatabricksResultSetMetaData metaData =
+        new DatabricksResultSetMetaData(STATEMENT_ID, resultManifest, false, legacyContext);
+    assertEquals("timestamp_ntz", metaData.getColumnName(1));
+    assertEquals(TIMESTAMP, metaData.getColumnTypeName(1));
+    assertEquals(Types.TIMESTAMP, metaData.getColumnType(1));
   }
 
   @Test
@@ -193,7 +221,7 @@ public class DatabricksResultSetMetaDataTest {
       {"col_decimal", "decimal(10,2)", "DECIMAL", Types.DECIMAL, 10, 2},
       {"col_date", "date", "DATE", Types.DATE, 10, 0},
       {"col_timestamp", "timestamp", "TIMESTAMP", Types.TIMESTAMP, 29, 9},
-      {"col_timestamp_ntz", "timestamp_ntz", "TIMESTAMP", Types.TIMESTAMP, 29, 9},
+      {"col_timestamp_ntz", "timestamp_ntz", "TIMESTAMP_NTZ", Types.TIMESTAMP, 29, 9},
       {"col_bool", "boolean", "BOOLEAN", Types.BOOLEAN, 1, 0},
       {"col_binary", "binary", "BINARY", Types.BINARY, 1, 0},
       {"col_struct", "struct<col_int:int,col_string:string>", "STRUCT", Types.STRUCT, 255, 0},

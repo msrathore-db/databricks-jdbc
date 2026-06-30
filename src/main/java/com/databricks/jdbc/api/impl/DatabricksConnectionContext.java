@@ -1101,6 +1101,11 @@ public class DatabricksConnectionContext implements IDatabricksConnectionContext
   }
 
   @Override
+  public boolean isTimestampNtzTypeNameEnabled() {
+    return getParameter(DatabricksJdbcUrlParams.ENABLE_TIMESTAMP_NTZ_TYPE_NAME).equals("1");
+  }
+
+  @Override
   public boolean isRequestTracingEnabled() {
     return getParameter(DatabricksJdbcUrlParams.ENABLE_REQUEST_TRACING).equals("1");
   }
