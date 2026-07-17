@@ -141,6 +141,18 @@ public final class ProtocolFeatureUtil {
   }
 
   /**
+   * Checks if the given protocol version supports batch parameterized inserts, i.e. submitting a
+   * single parameterized statement together with a batch of multiple parameter sets via the {@code
+   * batchParameters} field. Added in {@code SPARK_CLI_SERVICE_PROTOCOL_V10} (DBR 18.2+).
+   *
+   * @param protocolVersion The protocol version to check
+   * @return true if batch parameterized inserts are supported, false otherwise
+   */
+  public static boolean supportsBatchParameterizedInserts(TProtocolVersion protocolVersion) {
+    return protocolVersion.compareTo(TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V10) >= 0;
+  }
+
+  /**
    * Checks if the given protocol version indicates a non-Databricks compute.
    *
    * @param protocolVersion The protocol version to check

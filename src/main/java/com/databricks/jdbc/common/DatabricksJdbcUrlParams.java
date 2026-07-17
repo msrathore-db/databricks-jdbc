@@ -180,7 +180,12 @@ public enum DatabricksJdbcUrlParams {
       "MetadataOperationTimeout",
       "Timeout in seconds for metadata polling operations (e.g. GetTables, GetColumns). 0 means no timeout",
       "300"),
-  ENABLE_BATCHED_INSERTS("EnableBatchedInserts", "Enable batched INSERT optimization", "0"),
+  ENABLE_BATCHED_INSERTS(
+      "EnableBatchedInserts",
+      "Enable batched INSERT optimization. When the server supports it, the whole batch of parameter"
+          + " sets is submitted in a single request (server-side batch parameters); otherwise the"
+          + " driver falls back to client-side multi-row INSERT expansion.",
+      "0"),
   ENABLE_SQL_VALIDATION_FOR_IS_VALID(
       "EnableSQLValidationForIsValid",
       "Enable SQL query execution for connection validation in isValid() method",

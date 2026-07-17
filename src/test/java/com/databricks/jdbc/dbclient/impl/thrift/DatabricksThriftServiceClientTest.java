@@ -28,6 +28,7 @@ import com.databricks.jdbc.model.client.thrift.generated.*;
 import com.databricks.jdbc.model.core.ChunkLinkFetchResult;
 import com.databricks.jdbc.model.core.ExternalLink;
 import com.databricks.jdbc.model.core.ResultColumn;
+import com.databricks.jdbc.model.telemetry.enums.DatabricksDriverErrorCode;
 import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.service.sql.StatementState;
 import java.math.BigDecimal;
@@ -82,7 +83,7 @@ public class DatabricksThriftServiceClientTest {
             .setInitialNamespace(getNamespace(CATALOG, SCHEMA))
             .setConfiguration(EMPTY_MAP)
             .setCanUseMultipleCatalogs(true)
-            .setClient_protocol_i64(TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V9.getValue());
+            .setClient_protocol_i64(JDBC_THRIFT_VERSION.getValue());
     TOpenSessionResp openSessionResp =
         new TOpenSessionResp()
             .setSessionHandle(SESSION_HANDLE)
@@ -105,7 +106,7 @@ public class DatabricksThriftServiceClientTest {
             .setInitialNamespace(getNamespace(CATALOG, SCHEMA))
             .setConfiguration(EMPTY_MAP)
             .setCanUseMultipleCatalogs(true)
-            .setClient_protocol_i64(TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V9.getValue());
+            .setClient_protocol_i64(JDBC_THRIFT_VERSION.getValue());
 
     // Case 1: Server returns unsupported protocol version (too old)
     TOpenSessionResp unsupportedVersionResp =
@@ -252,6 +253,77 @@ public class DatabricksThriftServiceClientTest {
       assertFalse(arrowTypes.isNullTypeAsArrow());
       assertFalse(arrowTypes.isDecimalAsArrow());
     }
+  }
+
+  @Test
+  void testExecuteBatchStatementSetsBatchParametersOnV10() throws SQLException {
+    DatabricksThriftServiceClient client =
+        new DatabricksThriftServiceClient(thriftAccessor, connectionContext);
+    when(session.getSessionInfo()).thenReturn(SESSION_INFO);
+    client.setServerProtocolVersion(TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V10);
+
+    List<Map<Integer, ImmutableSqlParameter>> batchParameters =
+        Arrays.asList(
+            Collections.singletonMap(
+                1, ImmutableSqlParameter.builder().cardinal(1).type(INT).value(1).build()),
+            Collections.singletonMap(
+                1, ImmutableSqlParameter.builder().cardinal(1).type(INT).value(2).build()),
+            Collections.singletonMap(
+                1, ImmutableSqlParameter.builder().cardinal(1).type(INT).value(3).build()));
+
+    try {
+      client.executeBatchStatement(
+          TEST_STRING,
+          CLUSTER_COMPUTE,
+          batchParameters,
+          StatementType.UPDATE,
+          session,
+          parentStatement);
+    } catch (Exception e) {
+      // thriftAccessor is mocked; we only care about the request that was built.
+    }
+
+    ArgumentCaptor<TExecuteStatementReq> requestCaptor =
+        ArgumentCaptor.forClass(TExecuteStatementReq.class);
+    verify(thriftAccessor)
+        .execute(
+            requestCaptor.capture(), eq(parentStatement), eq(session), eq(StatementType.UPDATE));
+
+    TExecuteStatementReq request = requestCaptor.getValue();
+    assertEquals(TEST_STRING, request.getStatement());
+    // batchParameters must be set (one entry per parameter set) and the single-parameter field
+    // must be cleared, since the two are mutually exclusive server-side.
+    assertTrue(request.isSetBatchParameters());
+    assertFalse(request.isSetParameters());
+    assertEquals(3, request.getBatchParameters().size());
+    assertEquals(1, request.getBatchParameters().get(0).size());
+  }
+
+  @Test
+  void testExecuteBatchStatementThrowsBelowV10() {
+    DatabricksThriftServiceClient client =
+        new DatabricksThriftServiceClient(thriftAccessor, connectionContext);
+    client.setServerProtocolVersion(TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V9);
+
+    List<Map<Integer, ImmutableSqlParameter>> batchParameters =
+        Collections.singletonList(
+            Collections.singletonMap(
+                1, ImmutableSqlParameter.builder().cardinal(1).type(INT).value(1).build()));
+
+    // Below V10 the driver must signal unsupported so the caller falls back to client-side
+    // batching rather than sending a field the server will ignore.
+    DatabricksSQLException e =
+        assertThrows(
+            DatabricksSQLException.class,
+            () ->
+                client.executeBatchStatement(
+                    TEST_STRING,
+                    CLUSTER_COMPUTE,
+                    batchParameters,
+                    StatementType.UPDATE,
+                    session,
+                    parentStatement));
+    assertEquals(DatabricksDriverErrorCode.UNSUPPORTED_OPERATION.name(), e.getSQLState());
   }
 
   @Test

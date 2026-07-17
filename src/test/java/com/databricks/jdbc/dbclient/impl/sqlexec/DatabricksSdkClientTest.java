@@ -44,6 +44,7 @@ import java.util.*;
 import javax.net.ssl.SSLHandshakeException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -223,6 +224,47 @@ public class DatabricksSdkClientTest {
             argThat(
                 req -> req.getMethod().equals(Request.POST) && req.getUrl().equals(STATEMENT_PATH)),
             eq(ExecuteStatementResponse.class));
+  }
+
+  @Test
+  public void testExecuteBatchStatementSetsParameterSets() throws Exception {
+    setupClientMocks(true, false);
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContext.parse(JDBC_URL, new Properties());
+    DatabricksSdkClient databricksSdkClient =
+        new DatabricksSdkClient(connectionContext, statementExecutionService, apiClient);
+    DatabricksConnection connection =
+        new DatabricksConnection(connectionContext, databricksSdkClient);
+    connection.open();
+    DatabricksStatement statement = new DatabricksStatement(connection);
+
+    List<Map<Integer, ImmutableSqlParameter>> batchParameters =
+        Arrays.asList(
+            Collections.singletonMap(1, getSqlParam(1, 1, DatabricksTypeUtil.INT)),
+            Collections.singletonMap(1, getSqlParam(1, 2, DatabricksTypeUtil.INT)));
+
+    databricksSdkClient.executeBatchStatement(
+        STATEMENT,
+        warehouse,
+        batchParameters,
+        StatementType.UPDATE,
+        connection.getSession(),
+        statement);
+
+    // Capture the request actually serialized and verify it uses parameter_sets (one entry per
+    // batch row) and NOT the single-parameter field — the two are mutually exclusive server-side.
+    ArgumentCaptor<ExecuteStatementRequest> requestCaptor =
+        ArgumentCaptor.forClass(ExecuteStatementRequest.class);
+    verify(apiClient, atLeastOnce()).serialize(requestCaptor.capture());
+    ExecuteStatementRequest batchRequest =
+        requestCaptor.getAllValues().stream()
+            .filter(r -> r.getParameterSets() != null)
+            .findFirst()
+            .orElse(null);
+    assertNotNull(batchRequest, "expected a request populated with parameter_sets");
+    assertNull(batchRequest.getParameters());
+    assertEquals(2, batchRequest.getParameterSets().size());
+    assertEquals(STATEMENT, batchRequest.getStatement());
   }
 
   @Test

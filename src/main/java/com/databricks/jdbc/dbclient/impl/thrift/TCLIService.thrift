@@ -23,6 +23,7 @@ enum TProtocolVersion {
   SPARK_CLI_SERVICE_PROTOCOL_V7 = 0xA507
   SPARK_CLI_SERVICE_PROTOCOL_V8 = 0xA508
   SPARK_CLI_SERVICE_PROTOCOL_V9 = 0xA509
+  SPARK_CLI_SERVICE_PROTOCOL_V10 = 0xA50A
 }
 enum TTypeId {
   BOOLEAN_TYPE,
@@ -460,6 +461,11 @@ struct TExecuteStatementReq {
   0x508: optional TSparkParameterList parameters
   0x509: optional i64 maxBytesPerBatch
   0x510: optional TStatementConf statementConf
+
+  // A batch of parameter tuples for batched execution of a parameterized statement.
+  // It consists of multiple parameter lists, each one providing a single set of arguments
+  // for a single execution of the parameterized statement.
+  0x511: optional list<TSparkParameterList> batchParameters
 }
 union TSparkParameterValue {
   1: string stringValue

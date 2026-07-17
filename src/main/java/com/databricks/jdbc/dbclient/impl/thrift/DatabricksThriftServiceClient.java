@@ -189,6 +189,54 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
     return thriftAccessor.executeAsync(request, parentStatement, session, StatementType.SQL);
   }
 
+  @Override
+  public DatabricksResultSet executeBatchStatement(
+      String sql,
+      IDatabricksComputeResource computeResource,
+      List<Map<Integer, ImmutableSqlParameter>> batchParameters,
+      StatementType statementType,
+      IDatabricksSession session,
+      IDatabricksStatementInternal parentStatement)
+      throws SQLException {
+    LOGGER.debug(
+        String.format(
+            "public DatabricksResultSet executeBatchStatement(String sql = {%s}, batchSize = {%d})",
+            sql, batchParameters.size()));
+
+    // The server only understands the batchParameters field from V10 onwards. If the negotiated
+    // protocol is older, signal the caller (PreparedStatementBatchExecutor) to fall back to the
+    // client-side batching approach rather than sending a field the server will ignore (which would
+    // surface as an UNBOUND_SQL_PARAMETER / 42P02 error).
+    if (!ProtocolFeatureUtil.supportsBatchParameterizedInserts(serverProtocolVersion)) {
+      throw new DatabricksSQLException(
+          "Server-side batch parameters require Thrift protocol V10 or higher (negotiated: "
+              + serverProtocolVersion
+              + ")",
+          DatabricksDriverErrorCode.UNSUPPORTED_OPERATION);
+    }
+
+    DatabricksThreadContextHolder.setStatementType(statementType);
+
+    // Build the base request, then replace the single-parameter field with batchParameters. The
+    // two fields are mutually exclusive; the server rejects a request that sets both.
+    TExecuteStatementReq request =
+        getRequest(sql, new HashMap<>(), session, parentStatement, false, statementType);
+
+    List<List<TSparkParameter>> sparkBatchParameters =
+        batchParameters.stream()
+            .map(
+                paramSet ->
+                    paramSet.values().stream()
+                        .map(this::mapToSparkParameterListItem)
+                        .collect(Collectors.toList()))
+            .collect(Collectors.toList());
+
+    request.unsetParameters();
+    request.setBatchParameters(sparkBatchParameters);
+
+    return thriftAccessor.execute(request, parentStatement, session, statementType);
+  }
+
   @VisibleForTesting
   TSparkParameter mapToSparkParameterListItem(ImmutableSqlParameter parameter) {
     Object value = parameter.value();

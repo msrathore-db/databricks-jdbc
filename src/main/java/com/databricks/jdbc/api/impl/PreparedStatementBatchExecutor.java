@@ -10,6 +10,8 @@ import com.databricks.jdbc.log.JdbcLoggerFactory;
 import com.databricks.jdbc.model.telemetry.enums.DatabricksDriverErrorCode;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +21,14 @@ class PreparedStatementBatchExecutor {
   private static final JdbcLogger LOGGER =
       JdbcLoggerFactory.getLogger(PreparedStatementBatchExecutor.class);
 
+  /** Result-set column carrying the per-parameter-set affected row count in the batch response. */
+  private static final String AFFECTED_ROWS_COUNT_COLUMN = "num_affected_rows";
+
   private final String sql;
   private final DatabricksConnection connection;
   private final boolean interpolateParameters;
   private final StatementExecutor statementExecutor;
+  private final BatchStatementExecutor batchStatementExecutor;
 
   @FunctionalInterface
   interface StatementExecutor {
@@ -31,6 +37,15 @@ class PreparedStatementBatchExecutor {
         Map<Integer, ImmutableSqlParameter> params,
         StatementType statementType,
         boolean closeStatement)
+        throws SQLException;
+  }
+
+  @FunctionalInterface
+  interface BatchStatementExecutor {
+    DatabricksResultSet execute(
+        String sql,
+        List<Map<Integer, ImmutableSqlParameter>> batchParameters,
+        StatementType statementType)
         throws SQLException;
   }
 
@@ -43,6 +58,20 @@ class PreparedStatementBatchExecutor {
     this.connection = connection;
     this.interpolateParameters = interpolateParameters;
     this.statementExecutor = statementExecutor;
+    this.batchStatementExecutor = null;
+  }
+
+  PreparedStatementBatchExecutor(
+      String sql,
+      DatabricksConnection connection,
+      boolean interpolateParameters,
+      StatementExecutor statementExecutor,
+      BatchStatementExecutor batchStatementExecutor) {
+    this.sql = sql;
+    this.connection = connection;
+    this.interpolateParameters = interpolateParameters;
+    this.statementExecutor = statementExecutor;
+    this.batchStatementExecutor = batchStatementExecutor;
   }
 
   long[] executeBatch(List<DatabricksParameterMetaData> batchParameterMetaData)
@@ -51,12 +80,124 @@ class PreparedStatementBatchExecutor {
       return new long[0];
     }
 
-    // Try to optimize INSERT statements with multi-row batching
+    // Preferred path: submit the whole batch to the server in a single request via the
+    // batchParameters/parameter_sets field, letting DBR combine them into one performant execution.
+    if (canUseServerSideBatchParameters()) {
+      LOGGER.debug(
+          "Attempting server-side batch parameters for {} rows", batchParameterMetaData.size());
+      try {
+        return executeWithBatchParameters(batchParameterMetaData);
+      } catch (BatchParametersUnsupportedException e) {
+        // The negotiated protocol/DBR version does not support server-side batch parameters
+        // (either detected up front as < V10, or surfaced at runtime as an UNBOUND_SQL_PARAMETER
+        // 42P02 error from an old DBR that ignored the field). Fall back to the previous approach
+        // so batch insertion keeps working, per the graceful-rollout design.
+        LOGGER.info(
+            "Server-side batch parameters unsupported ({}); falling back to client-side batching",
+            e.getMessage());
+      }
+    }
+
+    return executeClientSideBatch(batchParameterMetaData);
+  }
+
+  /** Client-side batching used both when server-side is disabled and as the graceful fallback. */
+  private long[] executeClientSideBatch(List<DatabricksParameterMetaData> batchParameterMetaData)
+      throws DatabricksBatchUpdateException {
     if (canUseBatchedInsert()) {
+      LOGGER.debug(
+          "Using client-side multi-row INSERT expansion for {} rows",
+          batchParameterMetaData.size());
       return executeBatchedInsert(batchParameterMetaData);
-    } else {
-      // Fall back to individual execution for non-INSERT or incompatible statements
-      return executeIndividualStatements(batchParameterMetaData);
+    }
+
+    LOGGER.debug("Using individual statement execution for {} rows", batchParameterMetaData.size());
+    return executeIndividualStatements(batchParameterMetaData);
+  }
+
+  private boolean canUseServerSideBatchParameters() {
+    // A single connection property (EnableBatchedInserts) opts into batching; when a batch executor
+    // is wired (SEA or Thrift client supports it), we prefer the server-side path.
+    return batchStatementExecutor != null
+        && connection.getConnectionContext().isBatchedInsertsEnabled();
+  }
+
+  private long[] executeWithBatchParameters(
+      List<DatabricksParameterMetaData> batchParameterMetaData)
+      throws DatabricksBatchUpdateException, BatchParametersUnsupportedException {
+    LOGGER.debug(
+        "Executing INSERT with server-side batch parameters, {} rows",
+        batchParameterMetaData.size());
+
+    List<Map<Integer, ImmutableSqlParameter>> batchParams = new ArrayList<>();
+    for (DatabricksParameterMetaData metaData : batchParameterMetaData) {
+      batchParams.add(metaData.getParameterBindings());
+    }
+
+    DatabricksResultSet resultSet;
+    try {
+      resultSet = batchStatementExecutor.execute(sql, batchParams, StatementType.UPDATE);
+    } catch (SQLException e) {
+      if (isBatchParametersUnsupported(e)) {
+        // Signal executeBatch to retry via the client-side path. No rows were inserted (DBR fails
+        // the whole batch atomically), so falling back is safe.
+        throw new BatchParametersUnsupportedException(e.getMessage());
+      }
+      LOGGER.error("Error executing with server-side batch parameters: {}", e.getMessage(), e);
+      long[] failedCounts = new long[batchParameterMetaData.size()];
+      Arrays.fill(failedCounts, Statement.EXECUTE_FAILED);
+      throw new DatabricksBatchUpdateException(
+          e.getMessage(), DatabricksDriverErrorCode.BATCH_EXECUTE_EXCEPTION, failedCounts);
+    }
+
+    return extractUpdateCounts(resultSet, batchParameterMetaData.size());
+  }
+
+  /**
+   * The server returns one result row per parameter set, each carrying its {@code
+   * num_affected_rows} count. Read them in order into the update-count array. If the result set
+   * does not expose per-row counts (older/unexpected shape), default each entry to {@link
+   * Statement#SUCCESS_NO_INFO}.
+   */
+  private long[] extractUpdateCounts(DatabricksResultSet resultSet, int batchSize)
+      throws DatabricksBatchUpdateException {
+    long[] updateCounts = new long[batchSize];
+    try {
+      int index = 0;
+      while (index < batchSize && resultSet.next()) {
+        updateCounts[index++] = resultSet.getLong(AFFECTED_ROWS_COUNT_COLUMN);
+      }
+      // If the server did not return a row per parameter set, fill the remainder with
+      // SUCCESS_NO_INFO rather than claiming a specific count we do not have.
+      while (index < batchSize) {
+        updateCounts[index++] = Statement.SUCCESS_NO_INFO;
+      }
+      return updateCounts;
+    } catch (SQLException e) {
+      LOGGER.error("Error reading batch update counts from result set: {}", e.getMessage(), e);
+      long[] failedCounts = new long[batchSize];
+      Arrays.fill(failedCounts, Statement.EXECUTE_FAILED);
+      throw new DatabricksBatchUpdateException(
+          e.getMessage(), DatabricksDriverErrorCode.BATCH_EXECUTE_EXCEPTION, failedCounts);
+    }
+  }
+
+  /**
+   * Detects whether the failure indicates the server does not support server-side batch parameters,
+   * meaning we should gracefully fall back to client-side batching. This covers both the up-front
+   * capability check (Thrift protocol < V10, raised as UNSUPPORTED_OPERATION) and old DBR versions
+   * that ignore the batchParameters field and report the placeholders as unbound (SQLState 42P02).
+   */
+  private boolean isBatchParametersUnsupported(SQLException e) {
+    String sqlState = e.getSQLState();
+    return DatabricksJdbcConstants.UNBOUND_SQL_PARAMETER_SQLSTATE.equals(sqlState)
+        || DatabricksDriverErrorCode.UNSUPPORTED_OPERATION.name().equals(sqlState);
+  }
+
+  /** Internal signal that the server cannot handle batch parameters and we should fall back. */
+  private static class BatchParametersUnsupportedException extends Exception {
+    BatchParametersUnsupportedException(String message) {
+      super(message);
     }
   }
 

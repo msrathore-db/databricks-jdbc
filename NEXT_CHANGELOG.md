@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Batch parameterized INSERTs are now sent to the server in a single request when supported. With `EnableBatchedInserts=1`, `PreparedStatement.executeBatch()` submits all parameter sets via the new `batchParameters` (Thrift) / `parameter_sets` (SEA) field, letting the server combine them into one execution for Simba-parity performance. On servers that do not support it (Thrift protocol below V10 / DBR older than 18.2), the driver transparently falls back to the previous client-side batching so batch insertion keeps working.
 - Added connection property `OAuthWebServerTimeout` to configure the OAuth browser authentication timeout for U2M (user-to-machine) flows, and also updated hardcoded 1-hour timeout to default 120 seconds timeout.
 - Added connection property `UseQueryForMetadata` to use SQL SHOW commands instead of Thrift RPCs for metadata operations (getCatalogs, getSchemas, getTables, getColumns, getFunctions). This fixes incorrect wildcard matching where `_` was treated as a single-character wildcard in Thrift metadata pattern filters.
 - Added connection property `TreatMetadataCatalogNameAsPattern` to control whether catalog names are treated as patterns in Thrift metadata RPCs. When disabled (default), unescaped `_` in catalog names is escaped to prevent single-character wildcard matching. This aligns with JDBC spec which treats catalogName as identifier and not pattern.

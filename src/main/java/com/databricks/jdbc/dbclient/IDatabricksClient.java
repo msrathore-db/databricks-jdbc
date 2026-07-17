@@ -91,6 +91,29 @@ public interface IDatabricksClient {
       throws SQLException;
 
   /**
+   * Executes a batch parameterized statement in Databricks server. Instead of sending a single set
+   * of parameters, this sends multiple parameter sets via the batchParameters field in
+   * TExecuteStatementReq, allowing the server to handle batch execution natively.
+   *
+   * @param sql SQL statement with parameter placeholders (e.g., INSERT INTO t VALUES (?, ?))
+   * @param computeResource underlying SQL-warehouse or all-purpose cluster
+   * @param batchParameters list of parameter sets, one per batch row
+   * @param statementType type of statement
+   * @param session underlying session
+   * @param parentStatement statement instance if called from a statement
+   * @return response for statement execution
+   */
+  @DatabricksMetricsTimed
+  DatabricksResultSet executeBatchStatement(
+      String sql,
+      IDatabricksComputeResource computeResource,
+      java.util.List<Map<Integer, ImmutableSqlParameter>> batchParameters,
+      StatementType statementType,
+      IDatabricksSession session,
+      IDatabricksStatementInternal parentStatement)
+      throws SQLException;
+
+  /**
    * Closes a statement in Databricks server
    *
    * @param statementId statement which should be closed

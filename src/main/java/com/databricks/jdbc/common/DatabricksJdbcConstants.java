@@ -107,6 +107,12 @@ public final class DatabricksJdbcConstants {
   public static final String GCP_GOOGLE_ID_AUTH_TYPE = "google-id";
   public static final String DEFAULT_HTTP_EXCEPTION_SQLSTATE = "08000";
   public static final String QUERY_EXECUTION_TIMEOUT_SQLSTATE = "57KD0";
+
+  // Returned by DBR versions older than 18.2 when the driver opts into server-side batch parameters
+  // (the batchParameters field) but the server does not understand it and finds the parameter
+  // placeholders unbound ([UNBOUND_SQL_PARAMETER]). Used to trigger graceful fallback to the
+  // client-side batching approach.
+  public static final String UNBOUND_SQL_PARAMETER_SQLSTATE = "42P02";
   public static final int TEMPORARY_REDIRECT_STATUS_CODE = 307;
   public static final String REDACTED_TOKEN = "****";
   public static final String QUERY_TAGS = "query_tags";

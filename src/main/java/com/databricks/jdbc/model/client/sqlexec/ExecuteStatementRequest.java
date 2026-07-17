@@ -43,6 +43,9 @@ public class ExecuteStatementRequest {
   @JsonProperty("parameters")
   private Collection<StatementParameterListItem> parameters;
 
+  @JsonProperty("parameter_sets")
+  private Collection<StatementParameterSet> parameterSets;
+
   @JsonProperty("result_compression")
   private CompressionCodec resultCompression;
 
@@ -80,6 +83,10 @@ public class ExecuteStatementRequest {
 
   public Collection<StatementParameterListItem> getParameters() {
     return parameters;
+  }
+
+  public Collection<StatementParameterSet> getParameterSets() {
+    return parameterSets;
   }
 
   public CompressionCodec getResultCompression() {
@@ -138,6 +145,11 @@ public class ExecuteStatementRequest {
     return this;
   }
 
+  public ExecuteStatementRequest setParameterSets(Collection<StatementParameterSet> parameterSets) {
+    this.parameterSets = parameterSets;
+    return this;
+  }
+
   @Override
   public String toString() {
     return new ToStringer(ExecuteStatementRequest.class)
@@ -145,6 +157,7 @@ public class ExecuteStatementRequest {
         .add("format", format)
         .add("onWaitTimeout", onWaitTimeout)
         .add("parameters", parameters)
+        .add("parameterSets", parameterSets)
         .add("statement", statement)
         .add("sessionId", sessionId)
         .add("waitTimeout", waitTimeout)
@@ -160,6 +173,7 @@ public class ExecuteStatementRequest {
         format,
         onWaitTimeout,
         parameters,
+        parameterSets,
         rowLimit,
         statement,
         waitTimeout,
@@ -177,6 +191,7 @@ public class ExecuteStatementRequest {
         && Objects.equals(format, that.format)
         && Objects.equals(onWaitTimeout, that.onWaitTimeout)
         && Objects.equals(parameters, that.parameters)
+        && Objects.equals(parameterSets, that.parameterSets)
         && Objects.equals(rowLimit, that.rowLimit)
         && Objects.equals(statement, that.statement)
         && Objects.equals(waitTimeout, that.waitTimeout)

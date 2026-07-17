@@ -197,8 +197,6 @@ public class DatabricksSdkClient implements IDatabricksClient {
         parentStatement,
         metadataOperationType);
     DatabricksThreadContextHolder.setSessionId(session.getSessionId());
-    long pollCount = 0;
-    long executionStartTime = Instant.now().toEpochMilli();
     DatabricksThreadContextHolder.setStatementType(statementType);
     ExecuteStatementRequest request =
         getRequest(
@@ -209,6 +207,34 @@ public class DatabricksSdkClient implements IDatabricksClient {
             parameters,
             parentStatement,
             false);
+    return executeAndPoll(
+        request,
+        sql,
+        statementType,
+        computeResource,
+        session,
+        parentStatement,
+        metadataOperationType);
+  }
+
+  /**
+   * Submits an {@link ExecuteStatementRequest} and polls until the statement reaches a terminal
+   * state, then returns the result set. Shared by {@link #executeStatement} and {@link
+   * #executeBatchStatement}: the two paths differ only in how the request is built (a single {@code
+   * parameters} set vs. a batch of {@code parameter_sets}); the POST, polling, timeout handling and
+   * result construction are identical, so they live here to avoid a second poll loop.
+   */
+  private DatabricksResultSet executeAndPoll(
+      ExecuteStatementRequest request,
+      String sql,
+      StatementType statementType,
+      IDatabricksComputeResource computeResource,
+      IDatabricksSession session,
+      IDatabricksStatementInternal parentStatement,
+      MetadataOperationType metadataOperationType)
+      throws SQLException {
+    long pollCount = 0;
+    long executionStartTime = Instant.now().toEpochMilli();
     ExecuteStatementResponse response;
     try {
       Request req = new Request(Request.POST, STATEMENT_PATH, apiClient.serialize(request));
@@ -388,6 +414,39 @@ public class DatabricksSdkClient implements IDatabricksClient {
         statementType,
         session,
         parentStatement);
+  }
+
+  @Override
+  public DatabricksResultSet executeBatchStatement(
+      String sql,
+      IDatabricksComputeResource computeResource,
+      List<Map<Integer, ImmutableSqlParameter>> batchParameters,
+      StatementType statementType,
+      IDatabricksSession session,
+      IDatabricksStatementInternal parentStatement)
+      throws SQLException {
+    LOGGER.debug(
+        "public DatabricksResultSet executeBatchStatement(String sql = {}, compute resource = {}, batchSize = {}, statementType = {}, session = {}, parentStatement = {})",
+        sql,
+        computeResource,
+        batchParameters.size(),
+        statementType,
+        session,
+        parentStatement);
+    DatabricksThreadContextHolder.setSessionId(session.getSessionId());
+    DatabricksThreadContextHolder.setStatementType(statementType);
+    ExecuteStatementRequest request =
+        getBatchRequest(
+            statementType,
+            sql,
+            ((Warehouse) computeResource).getWarehouseId(),
+            session,
+            batchParameters,
+            parentStatement);
+    // Batch parameterized inserts are always synchronous DML with no metadata operation, so they
+    // reuse the same POST + poll + result-construction flow as single-statement execution.
+    return executeAndPoll(
+        request, sql, statementType, computeResource, session, parentStatement, null);
   }
 
   @Override
@@ -634,6 +693,55 @@ public class DatabricksSdkClient implements IDatabricksClient {
       IDatabricksStatementInternal parentStatement,
       boolean executeAsync)
       throws SQLException {
+    List<StatementParameterListItem> parameterListItems =
+        parameters.values().stream().map(this::mapToParameterListItem).collect(Collectors.toList());
+    return getBaseRequest(statementType, sql, warehouseId, session, parentStatement, executeAsync)
+        .setParameters(parameterListItems);
+  }
+
+  /**
+   * Builds an {@link ExecuteStatementRequest} for a batch parameterized statement. Identical to
+   * {@link #getRequest} except that it populates the {@code parameter_sets} field (one entry per
+   * batch row) instead of the single {@code parameters} field, so the server executes the statement
+   * once per parameter set. The two fields are mutually exclusive; only {@code parameter_sets} is
+   * set here.
+   */
+  private ExecuteStatementRequest getBatchRequest(
+      StatementType statementType,
+      String sql,
+      String warehouseId,
+      IDatabricksSession session,
+      List<Map<Integer, ImmutableSqlParameter>> batchParameters,
+      IDatabricksStatementInternal parentStatement)
+      throws SQLException {
+    List<StatementParameterSet> parameterSets =
+        batchParameters.stream()
+            .map(
+                paramSet ->
+                    new StatementParameterSet()
+                        .setParameters(
+                            paramSet.values().stream()
+                                .map(this::mapToParameterListItem)
+                                .collect(Collectors.toList())))
+            .collect(Collectors.toList());
+    return getBaseRequest(statementType, sql, warehouseId, session, parentStatement, false)
+        .setParameterSets(parameterSets);
+  }
+
+  /**
+   * Builds the common scaffolding of an {@link ExecuteStatementRequest} (session, statement,
+   * warehouse, disposition, format, compression, timeouts, row limit) that is shared by both the
+   * single-parameter and batch-parameter execution paths. Callers set exactly one of {@code
+   * parameters} or {@code parameter_sets} on the returned request.
+   */
+  private ExecuteStatementRequest getBaseRequest(
+      StatementType statementType,
+      String sql,
+      String warehouseId,
+      IDatabricksSession session,
+      IDatabricksStatementInternal parentStatement,
+      boolean executeAsync)
+      throws SQLException {
     Format format = useCloudFetchForResult(statementType) ? Format.ARROW_STREAM : Format.JSON_ARRAY;
     Disposition defaultDisposition =
         connectionContext.isSqlExecHybridResultsEnabled()
@@ -648,8 +756,6 @@ public class DatabricksSdkClient implements IDatabricksClient {
       LOGGER.debug("Results are inline, skipping compression.");
       compressionCodec = CompressionCodec.NONE;
     }
-    List<StatementParameterListItem> parameterListItems =
-        parameters.values().stream().map(this::mapToParameterListItem).collect(Collectors.toList());
     ExecuteStatementRequest request =
         new ExecuteStatementRequest()
             .setSessionId(session.getSessionId())
@@ -657,8 +763,7 @@ public class DatabricksSdkClient implements IDatabricksClient {
             .setWarehouseId(warehouseId)
             .setDisposition(disposition)
             .setFormat(format)
-            .setResultCompression(compressionCodec)
-            .setParameters(parameterListItems);
+            .setResultCompression(compressionCodec);
     if (executeAsync) {
       request.setWaitTimeout(ASYNC_TIMEOUT_VALUE);
     } else {

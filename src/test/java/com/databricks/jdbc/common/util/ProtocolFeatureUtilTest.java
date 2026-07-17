@@ -34,6 +34,8 @@ public class ProtocolFeatureUtilTest {
   private static final TProtocolVersion MIN_VERSION_PARAMETERIZED = SPARK_CLI_SERVICE_PROTOCOL_V8;
   private static final TProtocolVersion MIN_VERSION_ASYNC_OPERATIONS =
       SPARK_CLI_SERVICE_PROTOCOL_V9;
+  private static final TProtocolVersion MIN_VERSION_BATCH_PARAMETERIZED_INSERTS =
+      SPARK_CLI_SERVICE_PROTOCOL_V10;
 
   private static Stream<Arguments> protocolVersionProvider() {
     return Stream.of(
@@ -46,7 +48,8 @@ public class ProtocolFeatureUtilTest {
         Arguments.of(SPARK_CLI_SERVICE_PROTOCOL_V6),
         Arguments.of(SPARK_CLI_SERVICE_PROTOCOL_V7),
         Arguments.of(SPARK_CLI_SERVICE_PROTOCOL_V8),
-        Arguments.of(SPARK_CLI_SERVICE_PROTOCOL_V9));
+        Arguments.of(SPARK_CLI_SERVICE_PROTOCOL_V9),
+        Arguments.of(SPARK_CLI_SERVICE_PROTOCOL_V10));
   }
 
   @ParameterizedTest
@@ -158,6 +161,14 @@ public class ProtocolFeatureUtilTest {
   public void testIsNonDatabricksCompute(TProtocolVersion version) {
     boolean expected = version.compareTo(MIN_VERSION_DATABRICKS_COMPUTE) < 0;
     boolean actual = ProtocolFeatureUtil.isNonDatabricksCompute(version);
+    assertEquals(expected, actual);
+  }
+
+  @ParameterizedTest
+  @MethodSource("protocolVersionProvider")
+  public void testSupportsBatchParameterizedInserts(TProtocolVersion version) {
+    boolean expected = version.compareTo(MIN_VERSION_BATCH_PARAMETERIZED_INSERTS) >= 0;
+    boolean actual = ProtocolFeatureUtil.supportsBatchParameterizedInserts(version);
     assertEquals(expected, actual);
   }
 }

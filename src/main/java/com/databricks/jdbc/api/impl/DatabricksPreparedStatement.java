@@ -121,7 +121,9 @@ public class DatabricksPreparedStatement extends DatabricksStatement implements 
             connection,
             interpolateParameters,
             (sqlToExecute, params, statementType, closeStatement) ->
-                executeInternal(sqlToExecute, params, statementType, closeStatement));
+                executeInternal(sqlToExecute, params, statementType, closeStatement),
+            (sqlToExecute, batchParams, statementType) ->
+                executeBatchInternal(sqlToExecute, batchParams, statementType));
 
     long[] updateCounts = batchExecutor.executeBatch(databricksBatchParameterMetaData);
 
@@ -860,6 +862,27 @@ public class DatabricksPreparedStatement extends DatabricksStatement implements 
             .value(x)
             .cardinal(parameterIndex)
             .build());
+  }
+
+  DatabricksResultSet executeBatchInternal(
+      String sql,
+      java.util.List<Map<Integer, ImmutableSqlParameter>> batchParameters,
+      StatementType statementType)
+      throws SQLException {
+    LOGGER.debug(
+        "executeBatchInternal(sql={}, batchSize={}, statementType={})",
+        sql,
+        batchParameters.size(),
+        statementType);
+    com.databricks.jdbc.dbclient.IDatabricksClient client =
+        connection.getSession().getDatabricksClient();
+    return client.executeBatchStatement(
+        sql,
+        connection.getSession().getComputeResource(),
+        batchParameters,
+        statementType,
+        connection.getSession(),
+        this);
   }
 
   private DatabricksResultSet interpolateIfRequiredAndExecute(StatementType statementType)
