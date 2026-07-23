@@ -1460,4 +1460,47 @@ public class DatabricksSdkClientTest {
     // Direct results enabled -> WaitTimeout left unset (true SEA direct results).
     assertNull(captor.getValue().getWaitTimeout());
   }
+
+  // =========================================================================
+  // getResultChunks — row_offset bounded-SEA contract
+  // =========================================================================
+
+  @Test
+  public void testGetResultChunks_boundedSeaEnabled_appendsRowOffset() throws Exception {
+    Properties props = new Properties();
+    props.setProperty("UseBoundedSeaApi", "1");
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContext.parse(JDBC_URL, props);
+    DatabricksSdkClient databricksSdkClient =
+        new DatabricksSdkClient(connectionContext, statementExecutionService, apiClient);
+
+    when(apiClient.execute(any(Request.class), eq(ResultData.class))).thenReturn(new ResultData());
+
+    databricksSdkClient.getResultChunks(STATEMENT_ID, 2L, 450L);
+
+    ArgumentCaptor<Request> reqCaptor = ArgumentCaptor.forClass(Request.class);
+    verify(apiClient).execute(reqCaptor.capture(), eq(ResultData.class));
+    String path = reqCaptor.getValue().getUrl();
+    assertTrue(
+        path.contains("?row_offset=450"),
+        "Bounded SEA must append ?row_offset=<offset> to the chunk path, got: " + path);
+  }
+
+  @Test
+  public void testGetResultChunks_boundedSeaDisabled_noRowOffset() throws Exception {
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContext.parse(JDBC_URL, new Properties());
+    DatabricksSdkClient databricksSdkClient =
+        new DatabricksSdkClient(connectionContext, statementExecutionService, apiClient);
+
+    when(apiClient.execute(any(Request.class), eq(ResultData.class))).thenReturn(new ResultData());
+
+    databricksSdkClient.getResultChunks(STATEMENT_ID, 2L, 450L);
+
+    ArgumentCaptor<Request> reqCaptor = ArgumentCaptor.forClass(Request.class);
+    verify(apiClient).execute(reqCaptor.capture(), eq(ResultData.class));
+    String path = reqCaptor.getValue().getUrl();
+    assertFalse(
+        path.contains("row_offset"), "Non-bounded path must NOT append row_offset, got: " + path);
+  }
 }

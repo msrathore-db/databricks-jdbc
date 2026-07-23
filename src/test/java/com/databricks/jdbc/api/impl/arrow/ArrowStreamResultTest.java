@@ -98,6 +98,90 @@ public class ArrowStreamResultTest {
   }
 
   @Test
+  public void testEmptyChunkProvider() {
+    EmptyChunkProvider provider = new EmptyChunkProvider();
+    assertFalse(provider.hasNextChunk());
+    assertFalse(provider.next());
+    assertNull(provider.getChunk());
+    assertEquals(0, provider.getRowCount());
+    assertEquals(0, provider.getChunkCount());
+    assertFalse(provider.isClosed());
+    provider.close();
+    assertTrue(provider.isClosed());
+  }
+
+  @Test
+  public void testEmptyResultPreservesSchema() throws Exception {
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContextFactory.create(JDBC_URL, new Properties());
+    when(session.getConnectionContext()).thenReturn(connectionContext);
+    List<ColumnInfo> columns =
+        List.of(
+            new ColumnInfo().setName("col1").setTypeName(ColumnInfoTypeName.INT).setPosition(0L),
+            new ColumnInfo()
+                .setName("col2")
+                .setTypeName(ColumnInfoTypeName.STRING)
+                .setPosition(1L));
+    ResultManifest resultManifest =
+        new ResultManifest()
+            .setTotalChunkCount(0L)
+            .setTotalRowCount(0L)
+            .setSchema(new ResultSchema().setColumns(columns).setColumnCount(2L));
+    ResultData resultData = new ResultData().setExternalLinks(new ArrayList<>());
+    ArrowStreamResult result =
+        new ArrowStreamResult(resultManifest, resultData, STATEMENT_ID, session);
+
+    assertFalse(result.hasNext());
+    assertFalse(result.next());
+    assertEquals(0, result.getRowCount());
+    assertEquals(0, result.getChunkCount());
+    assertNull(result.getArrowMetadata());
+    result.close();
+  }
+
+  @Test
+  public void testEmptyResultWithNullExternalLinks() throws Exception {
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContextFactory.create(JDBC_URL, new Properties());
+    when(session.getConnectionContext()).thenReturn(connectionContext);
+    ResultManifest resultManifest =
+        new ResultManifest()
+            .setTotalChunkCount(0L)
+            .setTotalRowCount(0L)
+            .setSchema(new ResultSchema().setColumns(new ArrayList<>()).setColumnCount(0L));
+    ResultData resultData = new ResultData();
+    ArrowStreamResult result =
+        new ArrowStreamResult(resultManifest, resultData, STATEMENT_ID, session);
+
+    assertFalse(result.hasNext());
+    assertFalse(result.next());
+    assertEquals(0, result.getRowCount());
+    result.close();
+    assertFalse(result.hasNext());
+  }
+
+  @Test
+  public void testEmptyResultRepeatedNextReturnsFalse() throws Exception {
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContextFactory.create(JDBC_URL, new Properties());
+    when(session.getConnectionContext()).thenReturn(connectionContext);
+    ResultManifest resultManifest =
+        new ResultManifest()
+            .setTotalChunkCount(0L)
+            .setTotalRowCount(0L)
+            .setSchema(new ResultSchema().setColumns(new ArrayList<>()).setColumnCount(0L));
+    ResultData resultData = new ResultData().setExternalLinks(new ArrayList<>());
+    ArrowStreamResult result =
+        new ArrowStreamResult(resultManifest, resultData, STATEMENT_ID, session);
+
+    for (int i = 0; i < 5; i++) {
+      assertFalse(result.hasNext());
+      assertFalse(result.next());
+    }
+    result.close();
+  }
+
+  @Test
   public void testIteration() throws Exception {
     // Arrange
     ResultManifest resultManifest =
@@ -667,6 +751,54 @@ public class ArrowStreamResultTest {
 
     assertNotNull(result);
     assertFalse(result.hasNext(), "Empty result should have no data");
+    assertDoesNotThrow(result::close);
+  }
+
+  /**
+   * Verifies the bounded-SEA contract: with UseBoundedSeaApi=1 and external links,
+   * ArrowStreamResult routes to StreamingChunkProvider and passes null for totalChunkCount (must
+   * not rely on manifest.total_chunk_count). A regression that reverts to getTotalChunkCount() for
+   * the bounded path would break against real bounded servers that omit the field.
+   */
+  @Test
+  public void testBoundedSeaApiUsesStreamingChunkProviderWithNullTotalChunkCount()
+      throws Exception {
+    Properties props = new Properties();
+    props.setProperty("UseBoundedSeaApi", "1");
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContextFactory.create(JDBC_URL, props);
+
+    assertTrue(
+        connectionContext.isBoundedSeaApiEnabled(), "BoundedSeaApi should be enabled via property");
+
+    DatabricksSession localSession = new DatabricksSession(connectionContext, mockedSdkClient);
+
+    // Intentionally omit total_chunk_count (null) — bounded servers don't populate it.
+    ResultManifest resultManifest =
+        new ResultManifest()
+            .setTotalRowCount(110L)
+            .setTotalByteCount(1000L)
+            .setResultCompression(CompressionCodec.NONE)
+            .setChunks(this.chunkInfos.subList(0, 1))
+            .setSchema(new ResultSchema().setColumns(new ArrayList<>()).setColumnCount(0L));
+    // total_chunk_count is null — asserting the provider is chosen without it
+    assertNull(
+        resultManifest.getTotalChunkCount(),
+        "total_chunk_count must be null to exercise the bounded-SEA contract");
+
+    ResultData localResultData = new ResultData().setExternalLinks(getChunkLinks(0L, 0L, true));
+
+    setupMockResponse();
+    when(mockHttpClient.execute(isA(HttpUriRequest.class), eq(true))).thenReturn(httpResponse);
+
+    ArrowStreamResult result =
+        new ArrowStreamResult(
+            resultManifest, localResultData, STATEMENT_ID, localSession, mockHttpClient);
+
+    // StreamingChunkProvider is selected (not RemoteChunkProvider) — iteration completes
+    assertNotNull(result);
+    assertTrue(result.hasNext(), "Bounded-SEA result should have data");
+    assertTrue(result.next());
     assertDoesNotThrow(result::close);
   }
 }

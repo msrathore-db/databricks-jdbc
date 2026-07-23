@@ -1248,8 +1248,10 @@ public class DatabricksStatementTest {
     DatabricksResultSet secondResult = mock(DatabricksResultSet.class);
     StatementId firstStatementId = new StatementId("failing-stmt-id");
 
-    // closeStatement throws (e.g., operation already expired on server)
-    doThrow(new DatabricksSQLException("Operation not found", "HY000"))
+    // closeStatement throws (e.g., operation already expired on server).
+    // lenient: close is async — CI runners may not execute it before Mockito's afterEach check.
+    lenient()
+        .doThrow(new DatabricksSQLException("Operation not found", "HY000"))
         .when(client)
         .closeStatement(eq(firstStatementId));
 
@@ -1288,7 +1290,9 @@ public class DatabricksStatementTest {
     // closeStatement throws a transport-level error (e.g., unexpected server response,
     // corrupted framed transport). This is the scarier failure mode — not just "not found"
     // but a low-level I/O error that could corrupt shared transport state.
-    doThrow(new RuntimeException("HTTP request failed by code: 500, unexpected response"))
+    // lenient: close is async — CI runners may not execute it before Mockito's afterEach check.
+    lenient()
+        .doThrow(new RuntimeException("HTTP request failed by code: 500, unexpected response"))
         .when(client)
         .closeStatement(eq(firstStatementId));
 

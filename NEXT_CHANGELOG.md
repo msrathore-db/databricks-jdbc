@@ -5,21 +5,13 @@
 ### Added
 
 ### Updated
-- Bumped the Databricks SDK for Java dependency from `0.106.0` to `0.118.0`.
 
 ### Fixed
-- Fixed `PreparedStatement.getMetaData()` returning `null` for CTE (`WITH ...`) queries before execution. Metadata is now resolved via `DESCRIBE QUERY` for all query forms it supports (`SELECT`, `WITH`, `VALUES`, `FROM (...)` and parenthesized selects), matching the behavior of plain `SELECT` queries and the legacy driver.
-- Fixed `DatabaseMetaData.getURL()` exposing credentials embedded in the connection URL; secret parameters are now masked (the URL is otherwise unchanged).
-- Fixed presigned URL credentials not being fully redacted in logs.
-- Fixed access token exposure in DEBUG logs.
-- Fixed `StackOverflowError` / hang when closing a `ResultSet` or `Statement` with `closeOnCompletion()` enabled.
-- Fixed SQL injection vulnerability in binary parameter handling.
-- Fixed `setCatalog()` and `setSchema()` producing invalid SQL (e.g. `SET CATALOG ``name``) when the catalog or schema name was passed already wrapped in backticks. Backticks are now stripped before wrapping, and `getCatalog()`/`getSchema()` return the bare identifier name.
-- Fixed metadata SQL generation for catalog, schema, and table identifiers containing backticks.
-- Fixed SEA result truncation when direct results are disabled. Large, highly-compressible results that span multiple chunks were delivered inline via the old hybrid path and truncated to the first chunk. The SQL Execution path now uses an async (`0s`) wait timeout when direct results are disabled, so results are returned via external links and fetched in full.
-- Fixed `getColumns()` flooding the `DriverManager` log writer with caught-and-recovered `Invalid column index` stack traces.
-- Fixed timezone-shifted TIMESTAMP values when retrieving nested complex types (STRUCT/ARRAY/MAP) with `EnableComplexDatatypeSupport=1`.
-- Fixed `DatabricksDatabaseMetaData.supportsBatchUpdates()` always returning `false`, which caused batch-aware JDBC clients (e.g. Apache Hop) to skip `executeBatch()` and fall back to one INSERT per row. It now returns `true` when `EnableBatchedInserts=1`, so those clients use the optimized multi-row INSERT path.
+- Fixed `IdleConnectionEvictor` thread leak in long-running applications. Driver-side resources (HTTP client, background threads) are now always released when `Connection.close()` is called, even if statement cleanup or server-side session termination fails.
+
+- Throw `DatabricksSQLException` instead of an unchecked `ClassCastException` when a complex-type getter (`getArray`, `getStruct`, `getMap`) is called on a column of a different complex type.
+
+- Fixed `NullPointerException` when reading collated string columns (e.g. `STRING COLLATE UTF8_LCASE`) over Arrow. Such columns report a `type_name` that does not map to a `ColumnInfoTypeName`, leaving it null; the value read now recovers `STRING` from the type text and the result set metadata reports `VARCHAR` instead of `OTHER`, while `getColumnTypeName()` still preserves the collated type text.
 
 ---
 *Note: When making changes, please add your change under the appropriate section

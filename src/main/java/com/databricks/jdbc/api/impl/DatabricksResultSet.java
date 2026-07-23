@@ -77,6 +77,10 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
   private ResultSetType resultSetType = ResultSetType.UNASSIGNED;
 
   private boolean complexDatatypeSupport = false;
+  private boolean boundedSeaApiEnabled = false;
+  // Set to true when next() returns false for the bounded-SEA path, so that isAfterLast()
+  // returns true only after the cursor has moved PAST the last row (not while ON it).
+  private boolean boundedSeaExhausted = false;
 
   // Cached telemetry collector resolved once at construction time to avoid
   // per-row overhead in next(). The connection-to-collector mapping is stable
@@ -128,6 +132,7 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
       resultSetMetaData = null;
     }
     this.complexDatatypeSupport = session.getConnectionContext().isComplexDatatypeSupportEnabled();
+    this.boundedSeaApiEnabled = session.getConnectionContext().isBoundedSeaApiEnabled();
     this.statementType = statementType;
     this.updateCount = null;
     this.parentStatement = parentStatement;
@@ -354,6 +359,9 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
     }
     if (!hasNext) {
       stopHeartbeat();
+      if (boundedSeaApiEnabled && executionResult instanceof ArrowStreamResult) {
+        boundedSeaExhausted = true;
+      }
     }
     return hasNext;
   }
@@ -942,8 +950,16 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
   public boolean isAfterLast() throws SQLException {
     checkIfClosed();
     // Account for client-side maxRows truncation
-    return truncatedByMaxRows
-        || executionResult.getCurrentRow() >= resultSetMetaData.getTotalRows();
+    if (truncatedByMaxRows) {
+      return true;
+    }
+    // Bounded SEA API: manifest.total_row_count is not populated. Use the exhausted flag
+    // (set when next() returns false) so isAfterLast() is true only AFTER the last row,
+    // not while the cursor is still positioned ON it.
+    if (boundedSeaApiEnabled && executionResult instanceof ArrowStreamResult) {
+      return boundedSeaExhausted;
+    }
+    return executionResult.getCurrentRow() >= resultSetMetaData.getTotalRows();
   }
 
   @Override
@@ -981,6 +997,10 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
         || executionResult instanceof StreamingColumnarResult
         || executionResult instanceof LazyThriftInlineArrowResult
         || executionResult instanceof StreamingInlineArrowResult) {
+      return executionResult.getCurrentRow() >= 0 && !executionResult.hasNext();
+    }
+    // Bounded SEA API: manifest.total_row_count is not populated, so use hasNext()
+    if (boundedSeaApiEnabled && executionResult instanceof ArrowStreamResult) {
       return executionResult.getCurrentRow() >= 0 && !executionResult.hasNext();
     }
     return executionResult.getCurrentRow() == resultSetMetaData.getTotalRows() - 1;
@@ -1578,7 +1598,16 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
     }
     checkIfClosed();
     Object obj = getObjectInternal(columnIndex);
-
+    if (obj != null && !(obj instanceof DatabricksArray)) {
+      throw new DatabricksSQLException(
+          "Column "
+              + columnIndex
+              + " is not an ARRAY; cannot use getArray() (actual type: "
+              + obj.getClass().getSimpleName()
+              + ")",
+          DatabricksDriverErrorCode.COMPLEX_DATA_TYPE_ARRAY_CONVERSION_ERROR,
+          silenceNonTerminalExceptions);
+    }
     return (DatabricksArray) obj;
   }
 
@@ -1610,7 +1639,16 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
     }
     checkIfClosed();
     Object obj = getObjectInternal(columnIndex);
-
+    if (obj != null && !(obj instanceof DatabricksStruct)) {
+      throw new DatabricksSQLException(
+          "Column "
+              + columnIndex
+              + " is not a STRUCT; cannot use getStruct() (actual type: "
+              + obj.getClass().getSimpleName()
+              + ")",
+          DatabricksDriverErrorCode.COMPLEX_DATA_TYPE_STRUCT_CONVERSION_ERROR,
+          silenceNonTerminalExceptions);
+    }
     return (DatabricksStruct) obj;
   }
 
@@ -1643,7 +1681,16 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
     }
     checkIfClosed();
     Object obj = getObjectInternal(columnIndex);
-
+    if (obj != null && !(obj instanceof DatabricksMap)) {
+      throw new DatabricksSQLException(
+          "Column "
+              + columnIndex
+              + " is not a MAP; cannot use getMap() (actual type: "
+              + obj.getClass().getSimpleName()
+              + ")",
+          DatabricksDriverErrorCode.COMPLEX_DATA_TYPE_MAP_CONVERSION_ERROR,
+          silenceNonTerminalExceptions);
+    }
     return (Map<String, Object>) obj;
   }
 

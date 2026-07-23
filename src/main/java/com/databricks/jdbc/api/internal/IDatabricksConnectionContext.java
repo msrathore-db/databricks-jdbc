@@ -311,6 +311,13 @@ public interface IDatabricksConnectionContext {
   /** Returns true if driver returns GEOMETRY and GEOGRAPHY types natively. */
   boolean isGeoSpatialSupportEnabled();
 
+  /**
+   * Returns true if {@code ResultSetMetaData.getColumnTypeName()} should report "TIMESTAMP_NTZ" for
+   * TIMESTAMP_NTZ columns. When false, the type name is normalized to "TIMESTAMP" to match the
+   * legacy (v2.x.x) driver behavior.
+   */
+  boolean isTimestampNtzTypeNameEnabled();
+
   /** Returns the size for HTTP connection pool */
   int getHttpConnectionPoolSize() throws DatabricksValidationException;
 
@@ -460,6 +467,9 @@ public interface IDatabricksConnectionContext {
    * @return true if CloudFetch is enabled, false otherwise
    */
   boolean isCloudFetchEnabled();
+
+  /** Returns whether bounded SEA API mode is enabled for CloudFetch. */
+  boolean isBoundedSeaApiEnabled();
 
   /**
    * Returns the maximum number of batches to keep in memory for Thrift streaming.

@@ -529,6 +529,10 @@ public class DatabricksSdkClient implements IDatabricksClient {
     GetStatementResultChunkNRequest request =
         new GetStatementResultChunkNRequest().setStatementId(statementId).setChunkIndex(chunkIndex);
     String path = String.format(RESULT_CHUNK_PATH, statementId, chunkIndex);
+    // Bounded SEA API: always send row_offset (even 0 for chunk 0)
+    if (connectionContext.isBoundedSeaApiEnabled()) {
+      path = path + "?row_offset=" + chunkStartRowOffset;
+    }
     try {
       Request req = new Request(Request.GET, path, apiClient.serialize(request));
       req.withHeaders(getHeaders("getStatementResultN"));
