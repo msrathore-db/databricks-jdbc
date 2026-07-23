@@ -8,6 +8,7 @@
 - Bumped the Databricks SDK for Java dependency from `0.106.0` to `0.118.0`.
 
 ### Fixed
+- Fixed `PreparedStatement.getMetaData()` returning `null` for CTE (`WITH ...`) queries before execution. Metadata is now resolved via `DESCRIBE QUERY` for all query forms it supports (`SELECT`, `WITH`, `VALUES`, `FROM (...)` and parenthesized selects), matching the behavior of plain `SELECT` queries and the legacy driver.
 - Fixed `DatabaseMetaData.getURL()` exposing credentials embedded in the connection URL; secret parameters are now masked (the URL is otherwise unchanged).
 - Fixed presigned URL credentials not being fully redacted in logs.
 - Fixed access token exposure in DEBUG logs.
